@@ -1,0 +1,158 @@
+version: 57
+jobs:
+- name: Get Version (private)
+  executeInSandbox: false
+  jobExecutor: Builder
+  steps:
+  - type: CheckoutStep
+    name: checkout code
+    cloneCredential:
+      type: DefaultCredential
+    withLfs: false
+    withSubmodules: false
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: get version
+    runInContainer: false
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        echo "Extracting version from OpenProStreetLauncher.csproj..."
+        grep -oP '<Version>\K[^<]+' OpenProStreetLauncher.csproj > version.txt || echo "1.0.0" > version.txt
+        echo "Version extracted: $(cat version.txt)"
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: check if tag exists
+    runInContainer: false
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        version=$(cat version.txt)
+        echo "Checking if tag '$version' exists on origin..."
+
+        if git ls-remote --tags origin | grep -q "refs/tags/${version}$"; then
+            echo "Tag '$version' already exists."
+
+            new_version="${version}-@commit_hash@"
+            echo "$new_version" > version.txt
+            echo "Updated version.txt to '$new_version' to avoid tag conflict."
+
+            exit 1
+        else
+            echo "Tag '$version' does not exist. Proceeding with original version."
+            exit 0
+        fi
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: SetBuildVersionStep
+    name: set build version
+    buildVersion: '@file:version.txt@'
+    condition: ALWAYS
+    optional: false
+  - type: CreateTagStep
+    name: create tag
+    tagName: '@file:version.txt@'
+    tagMessage: Release Tag for @file:version.txt@
+    condition: SUCCESSFUL
+    optional: false
+  triggers:
+  - type: BranchUpdateTrigger
+    branches: master
+    userMatch: anyone
+  retryCondition: never
+  maxAttempts: 4
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 14400
+- name: Build Release Tag
+  executeInSandbox: false
+  jobExecutor: Builder
+  steps:
+  - type: CheckoutStep
+    name: checkout code
+    cloneCredential:
+      type: DefaultCredential
+    withLfs: false
+    withSubmodules: false
+    condition: SUCCESSFUL
+    optional: false
+  - type: SetBuildVersionStep
+    name: set build version
+    buildVersion: '@tag@'
+    condition: ALWAYS
+    optional: false
+  - type: CommandStep
+    name: test and publish
+    runInContainer: false
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        set -e
+        chmod +x ./build.sh
+        ./build.sh
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: PublishArtifactStep
+    name: Upload Artifacts
+    sourcePath: out/release
+    artifacts: '**'
+    condition: SUCCESSFUL
+    optional: false
+  triggers:
+  - type: TagCreateTrigger
+  retryCondition: never
+  maxAttempts: 4
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 14400
+- name: Verify
+  executeInSandbox: false
+  jobExecutor: Builder
+  steps:
+  - type: CheckoutStep
+    name: checkout code
+    cloneCredential:
+      type: DefaultCredential
+    withLfs: false
+    withSubmodules: false
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: test and publish
+    runInContainer: false
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        set -e
+        chmod +x ./build.sh
+        ./build.sh
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: PublishArtifactStep
+    name: keep the test build
+    sourcePath: out/release
+    artifacts: '**'
+    condition: SUCCESSFUL
+    optional: false
+  retryCondition: never
+  maxAttempts: 4
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600

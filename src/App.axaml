@@ -1,0 +1,187 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="OpenProStreetLauncher.App"
+             RequestedThemeVariant="Dark">
+
+  <!-- The tokens from the stats site's and panel's DESIGN.md: black, monochrome, colour only for status. -->
+  <Application.Resources>
+    <Color x:Key="SystemAccentColor">#FAFAFA</Color>
+    <Color x:Key="SystemAccentColorDark1">#E5E5E5</Color>
+    <Color x:Key="SystemAccentColorLight1">#FAFAFA</Color>
+    <SolidColorBrush x:Key="Bg" Color="#000000" />
+    <SolidColorBrush x:Key="Surface" Color="#0A0A0A" />
+    <SolidColorBrush x:Key="Surface2" Color="#141414" />
+    <SolidColorBrush x:Key="Line" Color="#1F1F1F" />
+    <SolidColorBrush x:Key="LineStrong" Color="#333333" />
+    <SolidColorBrush x:Key="Text" Color="#FAFAFA" />
+    <SolidColorBrush x:Key="Text2" Color="#A3A3A3" />
+    <SolidColorBrush x:Key="Text3" Color="#808080" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#000000" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="#000000" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPressed" Color="#000000" />
+    <FontFamily x:Key="Mono">DejaVu Sans Mono, Liberation Mono, Cascadia Mono, Consolas, monospace</FontFamily>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="#000000" />
+      <Setter Property="Foreground" Value="#A3A3A3" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style Selector="TextBlock.micro">
+      <Setter Property="FontFamily" Value="{StaticResource Mono}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="#808080" />
+      <Setter Property="LetterSpacing" Value="0.9" />
+    </Style>
+    <Style Selector="TextBlock.wordmark">
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#FAFAFA" />
+    </Style>
+    <Style Selector="TextBlock.title">
+      <Setter Property="FontSize" Value="24" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="LetterSpacing" Value="-0.5" />
+      <Setter Property="Foreground" Value="#FAFAFA" />
+    </Style>
+    <Style Selector="TextBlock.strong">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="Foreground" Value="#FAFAFA" />
+    </Style>
+    <Style Selector="TextBlock.body">
+      <Setter Property="Foreground" Value="#A3A3A3" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.small">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="#A3A3A3" />
+    </Style>
+
+    <!-- Buttons are pills: outlined, and the one primary action is white with black text. -->
+    <Style Selector="Button">
+      <Setter Property="CornerRadius" Value="999" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="#333333" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="#FAFAFA" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Padding" Value="20,9" />
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#141414" />
+      <Setter Property="BorderBrush" Value="#333333" />
+      <Setter Property="Foreground" Value="#FAFAFA" />
+    </Style>
+    <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#333333" />
+    </Style>
+    <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#808080" />
+      <Setter Property="BorderBrush" Value="#1F1F1F" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="Foreground" Value="#000000" />
+      <Setter Property="BorderBrush" Value="#FAFAFA" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#E5E5E5" />
+      <Setter Property="BorderBrush" Value="#E5E5E5" />
+      <Setter Property="Foreground" Value="#000000" />
+    </Style>
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#D4D4D4" />
+    </Style>
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#333333" />
+      <Setter Property="BorderBrush" Value="#333333" />
+      <Setter Property="Foreground" Value="#808080" />
+    </Style>
+    <Style Selector="Button.big">
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="MinHeight" Value="48" />
+      <Setter Property="Padding" Value="40,10" />
+    </Style>
+
+    <!-- Header navigation: plain text, white when active. -->
+    <Style Selector="Button.nav">
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="#A3A3A3" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="MinHeight" Value="32" />
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#FAFAFA" />
+    </Style>
+    <Style Selector="Button.nav.active">
+      <Setter Property="Foreground" Value="#FAFAFA" />
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Background" Value="#0A0A0A" />
+      <Setter Property="BorderBrush" Value="#333333" />
+      <Setter Property="Foreground" Value="#FAFAFA" />
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#FAFAFA" />
+      <Setter Property="Background" Value="#0A0A0A" />
+    </Style>
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#808080" />
+      <Setter Property="Background" Value="#0A0A0A" />
+    </Style>
+
+    <Style Selector="CheckBox, RadioButton">
+      <Setter Property="Foreground" Value="#FAFAFA" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- A checked box or radio button is white, so its mark is black. -->
+    <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
+      <Setter Property="Fill" Value="#000000" />
+    </Style>
+    <Style Selector="RadioButton:checked /template/ Ellipse#CheckGlyph">
+      <Setter Property="Fill" Value="#000000" />
+    </Style>
+    <Style Selector="TextBox:disabled /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#0A0A0A" />
+      <Setter Property="BorderBrush" Value="#1F1F1F" />
+    </Style>
+
+    <Style Selector="ComboBox">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Background" Value="#0A0A0A" />
+      <Setter Property="BorderBrush" Value="#333333" />
+      <Setter Property="MinHeight" Value="40" />
+    </Style>
+
+    <Style Selector="ProgressBar">
+      <Setter Property="Foreground" Value="#FAFAFA" />
+      <Setter Property="Background" Value="#1F1F1F" />
+      <Setter Property="Height" Value="4" />
+      <Setter Property="MinHeight" Value="4" />
+      <Setter Property="CornerRadius" Value="2" />
+    </Style>
+
+    <Style Selector="Border.list">
+      <Setter Property="BorderBrush" Value="#1F1F1F" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+  </Application.Styles>
+</Application>

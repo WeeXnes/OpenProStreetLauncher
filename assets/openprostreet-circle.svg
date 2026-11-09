@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#141414" />
+      <stop offset="100%" stop-color="#050505" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="56" y1="48" x2="200" y2="208" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f87171" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Outer Dark Carbon Circle -->
+  <circle cx="128" cy="128" r="116" fill="url(#bgGrad)" stroke="#262626" stroke-width="4" />
+
+  <!-- Subtle Inner Telemetry Circle -->
+  <circle cx="128" cy="128" r="100" stroke="#1f1f1f" stroke-width="1.5" stroke-dasharray="6 6" />
+
+  <!-- Padded Corner Telemetry Ticks (fitted comfortably inside the circular frame) -->
+  <path d="M68 82 V68 H82" stroke="#f87171" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.65" />
+  <path d="M188 82 V68 H174" stroke="#f87171" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.65" />
+  <path d="M68 174 V188 H82" stroke="#f87171" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.65" />
+  <path d="M188 174 V188 H174" stroke="#f87171" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.65" />
+
+  <!-- Center Geometric P Hardware/Racing Emblem -->
+  <g filter="url(#glow)">
+    <path
+      d="M90 76 H146 C166 76 178 88 178 107 C178 126 166 138 146 138 H113 V180 H90 V76 Z M113 95 V119 H142 C150 119 155 114 155 107 C155 100 150 95 142 95 H113 Z"
+      fill="url(#accentGrad)"
+    />
+  </g>
+
+  <!-- Active Telemetry Status Dot -->
+  <circle cx="176" cy="176" r="6.5" fill="#f87171" />
+</svg>

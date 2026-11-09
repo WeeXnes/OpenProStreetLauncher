@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LauncherTests</RootNamespace>
+    <RollForward>LatestMajor</RollForward>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../src/Core/ClientSettings.cs" />
+    <Compile Include="../src/Core/Disc.cs" />
+    <Compile Include="../src/Core/Downloads.cs" />
+    <Compile Include="../src/Core/ExeFix.cs" />
+    <Compile Include="../src/Core/Game.cs" />
+    <Compile Include="../src/Core/IniFile.cs" />
+    <Compile Include="../src/Core/Proton.cs" />
+    <Compile Include="../src/Core/SelfInstall.cs" />
+    <Compile Include="../src/Core/Setup.cs" />
+    <Compile Include="../src/Steam/Steam.cs" />
+    <Compile Include="../src/Steam/Vdf.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DiscUtils.Iso9660" Version="0.16.13" />
+    <PackageReference Include="DiscUtils.Udf" Version="0.16.13" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+  </ItemGroup>
+
+</Project>
