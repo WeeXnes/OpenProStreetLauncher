@@ -12,17 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../src/Core/ClientSettings.cs" />
-    <Compile Include="../src/Core/Disc.cs" />
-    <Compile Include="../src/Core/Downloads.cs" />
-    <Compile Include="../src/Core/ExeFix.cs" />
-    <Compile Include="../src/Core/Game.cs" />
-    <Compile Include="../src/Core/IniFile.cs" />
-    <Compile Include="../src/Core/Proton.cs" />
-    <Compile Include="../src/Core/SelfInstall.cs" />
-    <Compile Include="../src/Core/Setup.cs" />
-    <Compile Include="../src/Steam/Steam.cs" />
-    <Compile Include="../src/Steam/Vdf.cs" />
+    <Compile Include="../src/Core/**/*.cs" />
+    <Compile Include="../src/Steam/**/*.cs" />
+    <EmbeddedResource Include="../assets/logo.png" LogicalName="logo.png" />
   </ItemGroup>
 
   <ItemGroup>

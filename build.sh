@@ -45,7 +45,7 @@ grep -q "^Exec=$home/.local/bin/openprostreet-launcher$" "$home/.local/share/app
 test -s "$home/.local/share/icons/hicolor/256x256/apps/openprostreet-launcher.png"
 HOME="$home" "$home/.local/bin/openprostreet-launcher" version | grep -q "$version"
 
-if HOME="$home" "$home/.local/bin/openprostreet-launcher" update --force; then
+if HOME="$home" "$home/.local/bin/openprostreet-launcher" update --force 2>/dev/null; then
     echo "update check passed"
 else
     echo "no prior release on OneDev yet, skipping update check"

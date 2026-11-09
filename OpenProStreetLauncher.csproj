@@ -9,7 +9,7 @@
     <RootNamespace>OpenProStreetLauncher</RootNamespace>
     <AssemblyName>OpenProStreetLauncher</AssemblyName>
     <ApplicationIcon>assets/app.ico</ApplicationIcon>
-    <ApplicationManifest Condition="$([MSBuild]::IsOSPlatform('Windows'))">app.manifest</ApplicationManifest>
+    <ApplicationManifest Condition="'$(RuntimeIdentifier)' == 'win-x64'">app.manifest</ApplicationManifest>
     <RollForward>LatestMajor</RollForward>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
@@ -41,17 +41,8 @@
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
   </ItemGroup>
 
-  <!-- Windows Release -->
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <DebugType>none</DebugType>
-  </PropertyGroup>
-
-  <!-- Linux Release -->
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+  <!-- Self-contained release build for Windows and Linux -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
