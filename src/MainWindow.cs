@@ -47,7 +47,7 @@ namespace OpenProStreetLauncher
         // Settings
         RadioButton m_serverDefault, m_serverCustom, m_serverLan;
         TextBox m_address, m_port;
-        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_overlay, m_notifications, m_verbose, m_colour, m_dumpEvents;
+        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_verbose, m_colour, m_dumpEvents;
         TextBlock m_settingsNote;
 
         public MainWindow()
@@ -733,9 +733,6 @@ namespace OpenProStreetLauncher
             page.Children.Add(Section("Car fixes", m_tank, m_speed));
             m_console = new CheckBox { Content = "Show the console window, with MultiFix's and the client's log" };
             page.Children.Add(Section("Display", m_borderless, m_vibration, m_console));
-            m_overlay = new CheckBox { Content = "Your times and place in races" };
-            m_notifications = new CheckBox { Content = "Race notifications" };
-            page.Children.Add(Section("Overlay", m_overlay, m_notifications));
             page.Children.Add(Section("Advanced", m_verbose, m_colour, m_dumpEvents));
 
             m_settingsNote = Ui.Text("", "small");
@@ -795,8 +792,6 @@ namespace OpenProStreetLauncher
             m_verbose.IsChecked = s.Verbose;
             m_colour.IsChecked = s.Colour;
             m_dumpEvents.IsChecked = s.DumpEvents;
-            m_overlay.IsChecked = s.Overlay;
-            m_notifications.IsChecked = s.OverlayNotifications;
         }
 
         async Task SaveSettings()
@@ -823,8 +818,6 @@ namespace OpenProStreetLauncher
             s.Verbose = m_verbose.IsChecked == true;
             s.Colour = m_colour.IsChecked == true;
             s.DumpEvents = m_dumpEvents.IsChecked == true;
-            s.Overlay = m_overlay.IsChecked == true;
-            s.OverlayNotifications = m_notifications.IsChecked == true;
             try
             {
                 s.Save(ClientSettings.PathIn(m_gameDir));
