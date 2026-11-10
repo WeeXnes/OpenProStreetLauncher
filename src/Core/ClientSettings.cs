@@ -78,6 +78,39 @@ namespace OpenProStreetLauncher
         public bool Colour = true;
         public bool DumpEvents = false;
 
+        // The client logs in with these as soon as the account screen opens.
+        public bool AutoLogin = false;
+        public string Username = "";
+        public string Password = "";
+
+        // On Windows the password is protected with DPAPI for the Windows user, because the ini sits
+        // in the game folder, which other users of the PC can read. The client turns it back with the
+        // same entropy. Wine has no DPAPI shared with Linux, so there it's saved as it is.
+        const string ProtectedPrefix = "dpapi:";
+        static readonly byte[] Entropy = System.Text.Encoding.ASCII.GetBytes("OpenProStreet login");
+
+        static string ProtectPassword(string password)
+        {
+            if (password.Length == 0 || !System.OperatingSystem.IsWindows()) return password;
+            byte[] sealedBytes = System.Security.Cryptography.ProtectedData.Protect(
+                System.Text.Encoding.UTF8.GetBytes(password), Entropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            return ProtectedPrefix + System.Convert.ToBase64String(sealedBytes);
+        }
+
+        // "" when it can't be read here, such as one saved by another Windows user.
+        static string UnprotectPassword(string stored)
+        {
+            if (!stored.StartsWith(ProtectedPrefix, System.StringComparison.Ordinal)) return stored;
+            if (!System.OperatingSystem.IsWindows()) return "";
+            try
+            {
+                byte[] plain = System.Security.Cryptography.ProtectedData.Unprotect(
+                    System.Convert.FromBase64String(stored.Substring(ProtectedPrefix.Length)), Entropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                return System.Text.Encoding.UTF8.GetString(plain);
+            }
+            catch (System.Exception) { return ""; }
+        }
+
         public static string PathIn(string gameDir)
         {
             string scripts = Game.ScriptsDir(gameDir);
@@ -98,6 +131,9 @@ namespace OpenProStreetLauncher
             s.Verbose = ini.GetBool("Log", "Verbose", s.Verbose);
             s.Colour = ini.GetBool("Log", "Colour", s.Colour);
             s.DumpEvents = ini.GetBool("Debug", "DumpEvents", s.DumpEvents);
+            s.AutoLogin = ini.GetBool("Account", "AutoLogin", s.AutoLogin);
+            s.Username = (ini.Get("Account", "Username") ?? "").Trim();
+            s.Password = UnprotectPassword(ini.Get("Account", "Password") ?? "");
             return s;
         }
 
@@ -115,6 +151,10 @@ namespace OpenProStreetLauncher
             ini.SetBool("Log", "Verbose", Verbose);
             ini.SetBool("Log", "Colour", Colour);
             ini.SetBool("Debug", "DumpEvents", DumpEvents);
+            // The password is only kept while automatic login is on.
+            ini.SetBool("Account", "AutoLogin", AutoLogin);
+            ini.Set("Account", "Username", Username);
+            ini.Set("Account", "Password", AutoLogin ? ProtectPassword(Password) : "");
             ini.Save("; OpenProStreet client settings. The launcher can change these for you.");
         }
     }

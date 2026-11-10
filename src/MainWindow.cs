@@ -46,7 +46,8 @@ namespace OpenProStreetLauncher
 
         // Settings
         RadioButton m_serverDefault, m_serverCustom, m_serverLan;
-        TextBox m_address, m_port;
+        TextBox m_address, m_port, m_username, m_password;
+        CheckBox m_autoLogin;
         CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_verbose, m_colour, m_dumpEvents;
         TextBlock m_settingsNote;
 
@@ -729,6 +730,21 @@ namespace OpenProStreetLauncher
             m_colour = new CheckBox { Content = "Coloured console" };
             m_dumpEvents = new CheckBox { Content = "Write the event catalog, for server admins" };
 
+            m_autoLogin = new CheckBox { Content = "Log in automatically when you open OpenProStreet" };
+            m_username = new TextBox { Watermark = "OpenProStreet name" };
+            m_password = new TextBox { Watermark = "Password", PasswordChar = '•' };
+            m_autoLogin.IsCheckedChanged += (s, e) => m_username.IsEnabled = m_password.IsEnabled = m_autoLogin.IsChecked == true;
+            Grid account = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Margin = new Thickness(28, 4, 0, 4) };
+            account.Children.Add(m_username);
+            m_password.Margin = new Thickness(12, 0, 0, 0);
+            Grid.SetColumn(m_password, 1);
+            account.Children.Add(m_password);
+            TextBlock accountNote = Ui.Text(OperatingSystem.IsWindows()
+                ? "The password is saved encrypted for your Windows user."
+                : "The password is saved in the game folder as you typed it.", "small");
+            accountNote.Margin = new Thickness(28, 0, 0, 0);
+
+            page.Children.Add(Section("Account", m_autoLogin, account, accountNote));
             page.Children.Add(Section("Server", m_serverDefault, m_serverCustom, custom, m_serverLan));
             page.Children.Add(Section("Car fixes", m_tank, m_speed));
             m_console = new CheckBox { Content = "Show the console window, with MultiFix's and the client's log" };
@@ -737,7 +753,13 @@ namespace OpenProStreetLauncher
 
             m_settingsNote = Ui.Text("", "small");
             m_settingsNote.VerticalAlignment = VerticalAlignment.Center;
-            Button defaults = Ui.Button("Defaults", false, () => { ShowSettings(new ClientSettings()); m_settingsNote.Text = "Defaults shown. Save to keep them."; });
+            // Defaults leave the account as it is.
+            Button defaults = Ui.Button("Defaults", false, () =>
+            {
+                ClientSettings d = new ClientSettings { AutoLogin = m_autoLogin.IsChecked == true, Username = m_username.Text ?? "", Password = m_password.Text ?? "" };
+                ShowSettings(d);
+                m_settingsNote.Text = "Defaults shown. Save to keep them.";
+            });
             Button save = Ui.Button("Save", true, async () => await SaveSettings());
             StackPanel buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Right };
             buttons.Children.Add(defaults);
@@ -792,6 +814,10 @@ namespace OpenProStreetLauncher
             m_verbose.IsChecked = s.Verbose;
             m_colour.IsChecked = s.Colour;
             m_dumpEvents.IsChecked = s.DumpEvents;
+            m_autoLogin.IsChecked = s.AutoLogin;
+            m_username.Text = s.Username;
+            m_password.Text = s.Password;
+            m_username.IsEnabled = m_password.IsEnabled = s.AutoLogin;
         }
 
         async Task SaveSettings()
@@ -818,6 +844,14 @@ namespace OpenProStreetLauncher
             s.Verbose = m_verbose.IsChecked == true;
             s.Colour = m_colour.IsChecked == true;
             s.DumpEvents = m_dumpEvents.IsChecked == true;
+            s.AutoLogin = m_autoLogin.IsChecked == true;
+            s.Username = (m_username.Text ?? "").Trim();
+            s.Password = m_password.Text ?? "";
+            if (s.AutoLogin && (s.Username.Length == 0 || s.Password.Length == 0))
+            {
+                await Dialog.Show(this, "Automatic login", "Enter your OpenProStreet name and password, or turn automatic login off.");
+                return;
+            }
             try
             {
                 s.Save(ClientSettings.PathIn(m_gameDir));

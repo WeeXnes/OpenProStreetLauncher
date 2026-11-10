@@ -66,6 +66,22 @@ static class Tests
         File.WriteAllText(lan, "[Server]\nAddress=\n");
         Check(ClientSettings.Load(lan).Address == "", "an empty Address means search the LAN");
 
+        Console.WriteLine("Automatic login");
+        string account = Path.Combine(root, "account.ini");
+        new ClientSettings { AutoLogin = true, Username = "Alice", Password = "p=ss/word" }.Save(account);
+        string saved = File.ReadAllText(account);
+        Check(saved.Contains("AutoLogin=1") && saved.Contains("Username=Alice"), "the account is saved under [Account]");
+        Check(OperatingSystem.IsWindows() ? saved.Contains("Password=dpapi:") && !saved.Contains("p=ss/word") : saved.Contains("Password=p=ss/word"),
+              "the password is encrypted on Windows, as typed elsewhere");
+        ClientSettings loaded = ClientSettings.Load(account);
+        Check(loaded.AutoLogin && loaded.Username == "Alice" && loaded.Password == "p=ss/word", "the saved login reads back");
+        loaded.AutoLogin = false;
+        loaded.Save(account);
+        ClientSettings off = ClientSettings.Load(account);
+        Check(!off.AutoLogin && off.Username == "Alice" && off.Password == "", "turning it off forgets the password");
+        File.WriteAllText(account, "[Account]\r\nAutoLogin=1\r\nUsername=Alice\r\nPassword=dpapi:bm90IGEgcmVhbCBibG9i\r\n");
+        Check(ClientSettings.Load(account).Password == "", "a password this user can't decrypt reads as empty");
+
         Console.WriteLine("Console window");
         string game = Path.Combine(root, "consolegame");
         Directory.CreateDirectory(Path.Combine(game, "scripts"));
