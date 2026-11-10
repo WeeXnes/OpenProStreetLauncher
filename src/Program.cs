@@ -18,7 +18,37 @@ namespace OpenProStreetLauncher
                 if (args[i] == "-gamedir") InitialGameDir = args[i + 1];
                 if (args[i] == "--screenshot") ScreenshotDir = args[i + 1];
             }
+            if (ScreenshotDir == null && RestartedAsAdmin()) return 0;
             return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+
+        // A game folder under Program Files can only be changed with admin rights. When the saved
+        // folder is like that, the launcher asks for them as it starts, instead of after a click and
+        // a restart. Saying no to Windows' prompt just opens it without them.
+        static bool RestartedAsAdmin()
+        {
+            if (!OperatingSystem.IsWindows() || IsAdmin()) return false;
+            string dir = InitialGameDir ?? Game.FindGameDir();
+            if (!Game.IsGameDir(dir) || Game.IsWritable(dir)) return false;
+            try
+            {
+                var info = new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath) { UseShellExecute = true, Verb = "runas" };
+                info.ArgumentList.Add("-gamedir");
+                info.ArgumentList.Add(dir);
+                return System.Diagnostics.Process.Start(info) != null;
+            }
+            catch (Exception) { return false; }
+        }
+
+        public static bool IsAdmin()
+        {
+            if (!OperatingSystem.IsWindows()) return false;
+            try
+            {
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                    return new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+            }
+            catch (Exception) { return false; }
         }
 
         public static AppBuilder BuildAvaloniaApp() =>
