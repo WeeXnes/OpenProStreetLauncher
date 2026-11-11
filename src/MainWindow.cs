@@ -50,6 +50,8 @@ namespace OpenProStreetLauncher
         CheckBox m_autoLogin;
         CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_overlay, m_notifications, m_verbose, m_colour, m_dumpEvents;
         TextBlock m_settingsNote;
+        TextBlock m_installText;
+        Button m_installButton2, m_uninstallButton;
 
         public MainWindow()
         {
@@ -112,6 +114,8 @@ namespace OpenProStreetLauncher
             ShowPage(m_homePage);
             Opened += async (s, e) =>
             {
+                // Whichever way the game was found, remember it for next time.
+                if (Program.ScreenshotDir == null && Game.IsGameDir(m_gameDir) && LauncherSettings.GameDir != m_gameDir) LauncherSettings.GameDir = m_gameDir;
                 RefreshHome();
                 if (Program.ScreenshotDir != null)
                 {
@@ -793,6 +797,17 @@ namespace OpenProStreetLauncher
             m_notifications = new CheckBox { Content = "Race notifications" };
             page.Children.Add(Section("Overlay", m_overlay, m_notifications));
             page.Children.Add(Section("Advanced", m_verbose, m_colour, m_dumpEvents));
+            if (OperatingSystem.IsWindows())
+            {
+                m_installText = Ui.Text("", "small");
+                m_installText.TextWrapping = TextWrapping.Wrap;
+                m_installButton2 = Ui.Button("Install", false, async () => await InstallLauncher());
+                m_uninstallButton = Ui.Button("Uninstall", false, async () => await UninstallLauncher());
+                StackPanel installButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(0, 8, 0, 0) };
+                installButtons.Children.Add(m_installButton2);
+                installButtons.Children.Add(m_uninstallButton);
+                page.Children.Add(Section("Launcher", m_installText, installButtons));
+            }
 
             m_settingsNote = Ui.Text("", "small");
             m_settingsNote.VerticalAlignment = VerticalAlignment.Center;
@@ -815,6 +830,77 @@ namespace OpenProStreetLauncher
             return page;
         }
 
+        // ---- Installing the launcher into the game folder (Windows) ----
+
+        void ShowInstallState()
+        {
+            if (m_installText == null) return;
+            bool have = Game.IsGameDir(m_gameDir);
+            bool installed = have && WindowsInstall.IsInstalled(m_gameDir);
+            bool running = installed && WindowsInstall.IsRunningInstalled(m_gameDir);
+            if (!have) m_installText.Text = "Set up the game first.";
+            else if (running) m_installText.Text = "Installed in " + WindowsInstall.InstallDir(m_gameDir) + ", with a Start menu entry. This is the installed launcher.";
+            else if (installed) m_installText.Text = "Installed in " + WindowsInstall.InstallDir(m_gameDir) + ". You're running another copy; Install replaces the installed one with it.";
+            else m_installText.Text = "Install the launcher into the game folder (" + WindowsInstall.DirName + "), with a Start menu entry. It then always finds the game, and updates itself there.";
+            m_installButton2.Content = installed && !running ? "Replace" : "Install";
+            m_installButton2.IsVisible = !running;
+            m_installButton2.IsEnabled = have;
+            m_uninstallButton.IsVisible = installed;
+        }
+
+        async Task InstallLauncher()
+        {
+            if (!Game.IsGameDir(m_gameDir) || !await EnsureWritable()) return;
+            try
+            {
+                await Task.Run(() => WindowsInstall.Install(m_gameDir));
+                LauncherSettings.GameDir = m_gameDir;
+            }
+            catch (Exception e)
+            {
+                await Dialog.Show(this, "Couldn't install the launcher", e.Message);
+                return;
+            }
+            ShowInstallState();
+            string exe = WindowsInstall.InstalledExe(m_gameDir);
+            if (!await Dialog.Ask(this, "Launcher installed", "Installed in " + WindowsInstall.InstallDir(m_gameDir) + ", and added to the Start menu as \"OpenProStreet Launcher\". Start the installed launcher now? This one closes, and you can delete it.", "Start it", "Later"))
+                return;
+            try
+            {
+                var info = new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = WindowsInstall.InstallDir(m_gameDir) };
+                info.ArgumentList.Add("-gamedir");
+                info.ArgumentList.Add(m_gameDir);
+                System.Diagnostics.Process.Start(info);
+                Close();
+            }
+            catch (Exception e) { await Dialog.Show(this, "Couldn't start the installed launcher", e.Message); }
+        }
+
+        async Task UninstallLauncher()
+        {
+            if (!Game.IsGameDir(m_gameDir) || !await EnsureWritable()) return;
+            bool running = WindowsInstall.IsRunningInstalled(m_gameDir);
+            if (!await Dialog.Ask(this, "Uninstall the launcher", "This removes " + WindowsInstall.InstallDir(m_gameDir) + " and the Start menu entry. The game, the client and your settings stay." +
+                                  (running ? " This launcher closes afterwards; to use it again, run a downloaded OpenProStreetLauncher.exe." : ""), "Uninstall", "Cancel"))
+                return;
+            try
+            {
+                await Task.Run(() => WindowsInstall.Uninstall(m_gameDir));
+            }
+            catch (Exception e)
+            {
+                await Dialog.Show(this, "Couldn't uninstall the launcher", e.Message);
+                return;
+            }
+            if (running)
+            {
+                Close();
+                return;
+            }
+            ShowInstallState();
+            m_settingsNote.Text = "The launcher is uninstalled.";
+        }
+
         static Control Section(string title, params Control[] items)
         {
             StackPanel p = Ui.Stack(4, Ui.Micro(title));
@@ -828,6 +914,7 @@ namespace OpenProStreetLauncher
         {
             bool have = Game.IsGameDir(m_gameDir);
             m_settingsPage.IsEnabled = have;
+            ShowInstallState();
             if (!have)
             {
                 m_settingsNote.Text = "Set up the game first.";

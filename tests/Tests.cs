@@ -22,6 +22,7 @@ static class Tests
         try
         {
             IniTests(root);
+            if (OperatingSystem.IsWindows()) WindowsInstallTests(root);
             SteamTests(root);
             PrefixTests(root);
             DiscTests(root);
@@ -39,6 +40,33 @@ static class Tests
         }
         Console.WriteLine(s_failed == 0 ? "ALL TESTS PASSED" : s_failed + " TEST(S) FAILED");
         return s_failed == 0 ? 0 : 1;
+    }
+
+    // Installing into <game>.launcher and back out. Left alone when the PC already has the Start
+    // menu entry, so a real install isn't touched.
+    static void WindowsInstallTests(string root)
+    {
+        Console.WriteLine("Windows install");
+        if (File.Exists(WindowsInstall.ShortcutPath))
+        {
+            Console.WriteLine("  skip  the launcher is installed on this PC");
+            return;
+        }
+        string game = Path.Combine(root, "wingame");
+        Directory.CreateDirectory(game);
+        File.WriteAllText(Path.Combine(game, "nfs.exe"), "MZ");
+        Check(!WindowsInstall.IsInstalled(game), "a game folder starts without the launcher");
+        WindowsInstall.Install(game);
+        string exe = WindowsInstall.InstalledExe(game);
+        Check(File.Exists(exe) && new FileInfo(exe).Length == new FileInfo(Environment.ProcessPath).Length, "install copies the running launcher into .launcher");
+        Check((new DirectoryInfo(WindowsInstall.InstallDir(game)).Attributes & FileAttributes.Hidden) != 0, "the .launcher folder is hidden");
+        Check(File.Exists(WindowsInstall.ShortcutPath), "install adds the Start menu entry");
+        Check(WindowsInstall.IsInstalled(game) && !WindowsInstall.IsRunningInstalled(game), "it knows it's installed, and that this isn't the installed copy");
+        WindowsInstall.Install(game);
+        Check(File.Exists(exe), "installing again replaces the copy");
+        WindowsInstall.Uninstall(game);
+        Check(!Directory.Exists(WindowsInstall.InstallDir(game)) && !File.Exists(WindowsInstall.ShortcutPath), "uninstall removes the folder and the Start menu entry");
+        Check(File.Exists(Path.Combine(game, "nfs.exe")), "uninstall leaves the game alone");
     }
 
     static void IniTests(string root)

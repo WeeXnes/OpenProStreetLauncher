@@ -46,6 +46,13 @@ namespace OpenProStreetLauncher
             string own = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
             if (IsGameDir(own)) return own;
 
+            // Installed into the game folder, as <game>\.launcher\: the game is right there.
+            if (OperatingSystem.IsWindows())
+            {
+                string installedFor = WindowsInstall.GameDirOfInstalledCopy();
+                if (installedFor != null) return installedFor;
+            }
+
             string saved = LauncherSettings.GameDir;
             if (IsGameDir(saved)) return saved;
 
