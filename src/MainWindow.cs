@@ -32,7 +32,7 @@ namespace OpenProStreetLauncher
         // Home
         TextBlock m_folder, m_status;
         StatusRow m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowSteam, m_rowConflicts;
-        Button m_play, m_admin;
+        Button m_play, m_admin, m_steamPlay;
         Border m_footer;
         StackPanel m_homeReady, m_homeEmpty;
 
@@ -98,6 +98,7 @@ namespace OpenProStreetLauncher
 
             StackPanel footerButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Right };
             if (m_admin != null) footerButtons.Children.Add(m_admin);
+            if (OperatingSystem.IsWindows()) footerButtons.Children.Add(m_steamPlay);
             footerButtons.Children.Add(m_play);
             Grid.SetColumn(footerButtons, 1);
             footerGrid.Children.Add(footerButtons);
@@ -202,6 +203,11 @@ namespace OpenProStreetLauncher
             m_admin = Ui.Button("Restart as admin", false, RestartAsAdmin);
             m_admin.Classes.Add("big");
             m_admin.IsVisible = false;
+            // On Windows, a second way to start: through the game's Steam shortcut, so Steam's overlay,
+            // playtime and controller settings apply. Until there's a shortcut, it adds one.
+            m_steamPlay = Ui.Button("Add to Steam", false, async () => await SteamPlay());
+            m_steamPlay.Classes.Add("big");
+            m_steamPlay.IsVisible = false;
             m_play = Ui.Button("Play", true, async () => await Play());
             m_play.Classes.Add("big");
             m_play.HorizontalAlignment = HorizontalAlignment.Right;
@@ -239,6 +245,7 @@ namespace OpenProStreetLauncher
 
             m_folder.Text = m_gameDir;
             m_play.IsEnabled = !m_busy;
+            m_steamPlay.IsEnabled = !m_busy;
             string exe = Game.ExePath(m_gameDir);
 
             if (OperatingSystem.IsLinux() && Game.IsSupportedExe(exe) && ExeFix.Needed(exe))
@@ -267,9 +274,12 @@ namespace OpenProStreetLauncher
 
             if (OperatingSystem.IsWindows())
             {
+                bool inSteam = m_steam != null && exe != null && m_steam.HasShortcut(exe);
                 if (m_steam == null) m_rowSteam.Set(Ui.Idle, "Steam not found (optional)");
-                else if (exe != null && m_steam.HasShortcut(exe)) m_rowSteam.Set(Ui.Success, "In your Steam library");
-                else m_rowSteam.Set(Ui.Idle, "Not in your Steam library (optional)", "Add", AddToSteam);
+                else if (inSteam) m_rowSteam.Set(Ui.Success, "In your Steam library");
+                else m_rowSteam.Set(Ui.Idle, "Not in your Steam library (optional)", "Add", () => AddToSteam(true));
+                m_steamPlay.IsVisible = m_steam != null && exe != null;
+                m_steamPlay.Content = inSteam ? "Play via Steam" : "Add to Steam";
             }
             else
             {
@@ -278,9 +288,9 @@ namespace OpenProStreetLauncher
                 {
                     string tool = m_steam.CompatToolOf(Steam.ShortcutAppId(exe));
                     if (tool != null) m_rowSteam.Set(Ui.Success, "In your Steam library, with " + (m_steam.ProtonTools().FirstOrDefault(t => t.Name == tool)?.DisplayName ?? tool));
-                    else m_rowSteam.Set(Ui.Warning, "In your Steam library, but Proton isn't turned on for it", "Fix", AddToSteam);
+                    else m_rowSteam.Set(Ui.Warning, "In your Steam library, but Proton isn't turned on for it", "Fix", () => AddToSteam());
                 }
-                else m_rowSteam.Set(Ui.Warning, "Not in your Steam library yet", "Add", AddToSteam);
+                else m_rowSteam.Set(Ui.Warning, "Not in your Steam library yet", "Add", () => AddToSteam());
             }
 
             string fusion = Game.FindFile(Scripts, "NFSProStreet.FusionFix.asi"), rpc = Game.FindFile(Scripts, "ProStreetRPC.asi");
@@ -387,6 +397,7 @@ namespace OpenProStreetLauncher
             m_busy = true;
             SetStatus(message);
             m_play.IsEnabled = false;
+            m_steamPlay.IsEnabled = false;
             if (m_admin != null) m_admin.IsEnabled = false;
             try
             {
@@ -450,8 +461,9 @@ namespace OpenProStreetLauncher
             });
         }
 
-        // Adds the game to Steam. On Linux, ensures Proton is turned on. Steam has to be closed for that.
-        async Task<bool> AddToSteam()
+        // Adds the game to Steam. On Linux, ensures Proton is turned on. Steam has to be closed for that;
+        // with restartSteam it's started again afterwards, if it was running.
+        async Task<bool> AddToSteam(bool restartSteam = false)
         {
             if (m_steam == null)
             {
@@ -475,6 +487,7 @@ namespace OpenProStreetLauncher
                     return false;
                 }
             }
+            bool wasRunning = Steam.IsRunning();
             if (!await CloseSteam()) return false;
             bool ok = false;
             await Run("Adding the game to Steam...", () =>
@@ -488,6 +501,11 @@ namespace OpenProStreetLauncher
                     SetStatus("Added to Steam as \"" + Steam.AppName + "\", with " + tool.DisplayName + ".");
                 else
                     SetStatus("Added \"" + Steam.AppName + "\" to Steam.");
+                if (restartSteam && wasRunning)
+                {
+                    try { m_steam.Start(); }
+                    catch (Exception) { } // the shortcut is there either way, and Steam can be started by hand
+                }
             }
             return ok;
         }
@@ -550,6 +568,28 @@ namespace OpenProStreetLauncher
             try
             {
                 m_steam.Start(Steam.RunUrl(Steam.ShortcutAppId(exe)));
+                SetStatus("Starting the game through Steam...");
+            }
+            catch (Exception e) { await Dialog.Show(this, "Couldn't start Steam", e.Message); }
+        }
+
+        // The Steam button on Windows: adds the shortcut, or starts the game through it.
+        async Task SteamPlay()
+        {
+            string exe = Game.ExePath(m_gameDir);
+            if (m_steam == null || exe == null) return;
+            if (!m_steam.HasShortcut(exe))
+            {
+                await AddToSteam(true);
+                RefreshHome();
+                return;
+            }
+            bool ready = Game.FindFile(m_gameDir, Game.Loader) != null && Game.FindFile(Scripts, Game.ClientAsi) != null && Game.FindFile(Scripts, Game.MultiFixAsi) != null;
+            if (!ready && !await Dialog.Ask(this, "Not ready", "Some parts are missing, so OpenProStreet won't work. Start the game anyway?", "Start", "Cancel")) return;
+            try
+            {
+                m_steam.Start(Steam.RunUrl(Steam.ShortcutAppId(exe)));
+                LauncherSettings.GameDir = m_gameDir;
                 SetStatus("Starting the game through Steam...");
             }
             catch (Exception e) { await Dialog.Show(this, "Couldn't start Steam", e.Message); }
