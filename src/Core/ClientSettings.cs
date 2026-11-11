@@ -77,6 +77,8 @@ namespace OpenProStreetLauncher
         public bool Verbose = false;
         public bool Colour = true;
         public bool DumpEvents = false;
+        public bool Overlay = true;              // the standing card and race notifications
+        public bool OverlayNotifications = true;
 
         // The client logs in with these as soon as the account screen opens.
         public bool AutoLogin = false;
@@ -131,6 +133,8 @@ namespace OpenProStreetLauncher
             s.Verbose = ini.GetBool("Log", "Verbose", s.Verbose);
             s.Colour = ini.GetBool("Log", "Colour", s.Colour);
             s.DumpEvents = ini.GetBool("Debug", "DumpEvents", s.DumpEvents);
+            s.Overlay = ini.GetBool("Overlay", "Enabled", s.Overlay);
+            s.OverlayNotifications = ini.GetBool("Overlay", "Notifications", s.OverlayNotifications);
             s.AutoLogin = ini.GetBool("Account", "AutoLogin", s.AutoLogin);
             s.Username = (ini.Get("Account", "Username") ?? "").Trim();
             s.Password = UnprotectPassword(ini.Get("Account", "Password") ?? "");
@@ -151,6 +155,8 @@ namespace OpenProStreetLauncher
             ini.SetBool("Log", "Verbose", Verbose);
             ini.SetBool("Log", "Colour", Colour);
             ini.SetBool("Debug", "DumpEvents", DumpEvents);
+            ini.SetBool("Overlay", "Enabled", Overlay);
+            ini.SetBool("Overlay", "Notifications", OverlayNotifications);
             // The password is only kept while automatic login is on.
             ini.SetBool("Account", "AutoLogin", AutoLogin);
             ini.Set("Account", "Username", Username);

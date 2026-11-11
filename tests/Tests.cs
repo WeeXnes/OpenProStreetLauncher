@@ -66,6 +66,26 @@ static class Tests
         File.WriteAllText(lan, "[Server]\nAddress=\n");
         Check(ClientSettings.Load(lan).Address == "", "an empty Address means search the LAN");
 
+        Console.WriteLine("Overlay");
+        Check(fresh.Overlay && fresh.OverlayNotifications, "the overlay and its notifications are on by default");
+        string overlay = Path.Combine(root, "overlay.ini");
+        File.WriteAllText(overlay, "[overlay]\r\nenabled = 0\r\nNotifications=1\r\nPosition=TopLeft\r\nScale=1.5\r\n");
+        ClientSettings o = ClientSettings.Load(overlay);
+        Check(!o.Overlay && o.OverlayNotifications, "[Overlay] Enabled and Notifications are read");
+        o.Overlay = true;
+        o.OverlayNotifications = false;
+        o.Save(overlay);
+        string overlayText = File.ReadAllText(overlay);
+        Check(overlayText.Contains("Notifications=0") && !overlayText.Contains("enabled = 0") && ClientSettings.Load(overlay).Overlay,
+              "they're saved under [Overlay]: " + overlayText.Replace("\r\n", "|"));
+        Check(overlayText.Contains("Position=TopLeft") && overlayText.Contains("Scale=1.5"), "the client's Position and Scale are kept");
+        ClientSettings o2 = ClientSettings.Load(overlay);
+        Check(o2.Overlay && !o2.OverlayNotifications, "what was saved reads back");
+        string newOverlay = Path.Combine(root, "overlay-new.ini");
+        new ClientSettings().Save(newOverlay);
+        string newText = File.ReadAllText(newOverlay);
+        Check(newText.Contains("[Overlay]") && newText.Contains("Enabled=1") && newText.Contains("Notifications=1"), "a new file lists the overlay keys with their defaults");
+
         Console.WriteLine("Automatic login");
         string account = Path.Combine(root, "account.ini");
         new ClientSettings { AutoLogin = true, Username = "Alice", Password = "p=ss/word" }.Save(account);
