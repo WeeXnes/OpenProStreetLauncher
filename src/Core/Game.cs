@@ -16,6 +16,13 @@ namespace OpenProStreetLauncher
         public const string MultiFixIni = "XNFSPS-MultiFix.ini";
         public const string Loader = "dinput8.dll";
 
+        // Controller support, NFS-XtendedInput, which the client builds ship. The ini holds the player's
+        // own settings; the button icons go to GLOBAL.
+        public const string XtendedInputAsi = "NFS_XtendedInput.asi";
+        public const string XtendedInputIni = "NFS_XtendedInput.ini";
+        public static readonly string[] XtendedInputScripts = { XtendedInputAsi, "NFS_XtendedInput.default.ini", "nfs_cursor.cur", "NFS_XtendedInput.LICENSE.txt" };
+        public const string XtendedInputIcons = "XtendedInputButtons.tpk";
+
         // Linux file names are case sensitive, and Windows installers don't care how they spell them.
         public static string FindFile(string dir, string name)
         {
@@ -40,6 +47,9 @@ namespace OpenProStreetLauncher
 
         // The scripts folder, created with the usual spelling when it isn't there.
         public static string ScriptsDir(string gameDir) => FindDir(gameDir, "scripts") ?? Path.Combine(gameDir, "scripts");
+
+        // The game's GLOBAL folder, where its texture packs are.
+        public static string GlobalDir(string gameDir) => FindDir(gameDir, "GLOBAL") ?? Path.Combine(gameDir, "GLOBAL");
 
         public static string FindGameDir()
         {

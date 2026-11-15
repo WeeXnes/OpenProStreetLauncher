@@ -87,6 +87,9 @@ namespace OpenProStreetLauncher
             Downloads.InstallMultiFix(scripts);
             m_step("Installing the OpenProStreet client");
             Downloads.InstallClient(scripts, Downloads.LatestClient(), false);
+            // Controller support, on by default, on Windows and under Proton.
+            m_step("Installing controller support");
+            Downloads.InstallXtendedInput(gameDir, false);
             LauncherSettings.GameDir = gameDir;
         }
 

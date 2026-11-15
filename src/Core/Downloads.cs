@@ -23,7 +23,8 @@ namespace OpenProStreetLauncher
         const string OneDev = "https://code.weexnes.dev";
         const string LoaderUrl = "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/Win32-latest/dinput8-Win32.zip";
         const string ClientQuery = "\"Project\" is \"OpenProStreetClient\" and \"Job\" is \"Build Release Tag\" and successful";
-        const string MultiFixQuery = "\"Project\" is \"xnfsps-multifix\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
+        const string XtendedInputQuery = "\"Project\" is \"xtendedinput\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
+        const string MultiFixQuery ="\"Project\" is \"xnfsps-multifix\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
 
         static readonly HttpClient Http = CreateClient();
 
@@ -112,6 +113,31 @@ namespace OpenProStreetLauncher
             if (replaceAsi || !File.Exists(asi)) SaveArtifact(build, Game.ClientAsi, asi);
             string sdk = (Game.FindFile(scripts, Game.DiscordSdk) ?? Path.Combine(scripts, Game.DiscordSdk));
             if (!File.Exists(sdk)) SaveArtifact(build, Game.DiscordSdk, sdk);
+        }
+
+        // Controller support, from the newest build of OpenProStreet's NFS-XtendedInput fork: replace
+        // updates its files; an existing ini holds the player's own settings, so it's never replaced.
+        public static void InstallXtendedInput(string gameDir, bool replace)
+        {
+            Build build = LatestBuild(XtendedInputQuery);
+            string scripts = Game.ScriptsDir(gameDir), global = Game.GlobalDir(gameDir);
+            Directory.CreateDirectory(scripts);
+            Directory.CreateDirectory(global);
+            void Put(string dir, string name, bool overwrite)
+            {
+                string target = Game.FindFile(dir, name) ?? Path.Combine(dir, name);
+                if (overwrite || !File.Exists(target)) SaveArtifact(build, name, target);
+            }
+            Put(global, Game.XtendedInputIcons, replace);
+            foreach (string name in Game.XtendedInputScripts) Put(scripts, name, replace);
+            Put(scripts, Game.XtendedInputIni, false);
+        }
+
+        // Turns controller support off. Its settings and the button icons stay, for turning it on again.
+        public static void RemoveXtendedInput(string gameDir)
+        {
+            string asi = Game.FindFile(Game.ScriptsDir(gameDir), Game.XtendedInputAsi);
+            if (asi != null) File.Delete(asi);
         }
 
         // An existing MultiFix ini holds the player's own settings, so it's never replaced.
