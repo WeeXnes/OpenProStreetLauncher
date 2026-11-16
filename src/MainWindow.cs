@@ -48,6 +48,11 @@ namespace OpenProStreetLauncher
         RadioButton m_serverDefault, m_serverCustom, m_serverLan;
         TextBox m_address, m_port, m_username, m_password;
         CheckBox m_autoLogin;
+        CheckBox m_reshifted, m_shiftCoast, m_shiftQuick, m_shiftSkip, m_shiftIndicator;
+        RadioButton m_shiftAdaptive, m_shiftClassic;
+        Slider m_shortShift, m_sportShift, m_ecoThrottle, m_sportThrottle, m_quickShiftTime;
+        StackPanel m_shiftOptions, m_shiftAdaptiveOptions;
+        Control m_quickShiftTimeRow;
         CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_overlay, m_notifications, m_verbose, m_colour, m_dumpEvents;
         TextBlock m_settingsNote;
         TextBlock m_installText;
@@ -884,6 +889,7 @@ namespace OpenProStreetLauncher
             page.Children.Add(Section("Account", m_autoLogin, account, accountNote));
             page.Children.Add(Section("Server", m_serverDefault, m_serverCustom, custom, m_serverLan));
             page.Children.Add(Section("Car fixes", m_tank, m_speed));
+            page.Children.Add(BuildGearboxSection());
             m_console = new CheckBox { Content = "Show the console window, with MultiFix's and the client's log" };
             page.Children.Add(Section("Display", m_borderless, m_vibration, m_console));
             m_overlay = new CheckBox { Content = "Your times and place in races" };
@@ -994,6 +1000,84 @@ namespace OpenProStreetLauncher
             m_settingsNote.Text = "The launcher is uninstalled.";
         }
 
+        // A slider with its name on the left and its value on the right.
+        static Control SliderRow(string label, Slider slider, string unit)
+        {
+            TextBlock name = Ui.Text(label, "small");
+            name.VerticalAlignment = VerticalAlignment.Center;
+            TextBlock value = Ui.Text("", "small");
+            value.VerticalAlignment = VerticalAlignment.Center;
+            value.TextAlignment = TextAlignment.Right;
+            value.Width = 52;
+            slider.TickFrequency = 1;
+            slider.IsSnapToTickEnabled = true;
+            slider.Margin = new Thickness(12, 0, 8, 0);
+            void Show() => value.Text = ((int)Math.Round(slider.Value)) + unit;
+            slider.PropertyChanged += (s, e) => { if (e.Property == Slider.ValueProperty) Show(); };
+            Show();
+            Grid g = new Grid { ColumnDefinitions = new ColumnDefinitions("230,*,Auto") };
+            g.Children.Add(name);
+            Grid.SetColumn(slider, 1);
+            g.Children.Add(slider);
+            Grid.SetColumn(value, 2);
+            g.Children.Add(value);
+            return g;
+        }
+
+        // ReShifted is the master switch: everything under it only shows while it is on, and the
+        // Adaptive extras only while that style is picked.
+        Control BuildGearboxSection()
+        {
+            m_reshifted = new CheckBox { Content = "ReShifted: an automatic gearbox that shifts early when you drive gently and late when you drive hard" };
+            m_shiftAdaptive = new RadioButton { Content = "Adaptive: also remembers how hard you have been driving", GroupName = "shiftStyle" };
+            m_shiftClassic = new RadioButton { Content = "Classic: follows the throttle only, one gear at a time", GroupName = "shiftStyle" };
+            m_shiftCoast = new CheckBox { Content = "Shift down while coasting off the throttle" };
+            m_shiftQuick = new CheckBox { Content = "Quicker gear changes when driving hard" };
+            m_shiftSkip = new CheckBox { Content = "Kickdown can skip gears" };
+            m_shiftIndicator = new CheckBox { Content = "Show ECO or SPORT on screen while racing (needs the overlay)" };
+            m_shortShift = new Slider { Minimum = 10, Maximum = 55 };
+            m_sportShift = new Slider { Minimum = 88, Maximum = 99 };
+            m_ecoThrottle = new Slider { Minimum = 0, Maximum = 80 };
+            m_sportThrottle = new Slider { Minimum = 10, Maximum = 100 };
+            m_quickShiftTime = new Slider { Minimum = 30, Maximum = 100 };
+            // The sport throttle always stays at least 10 above the eco throttle, as in the client.
+            m_ecoThrottle.PropertyChanged += (s, e) =>
+            {
+                if (e.Property == Slider.ValueProperty && m_sportThrottle.Value < m_ecoThrottle.Value + 10) m_sportThrottle.Value = m_ecoThrottle.Value + 10;
+            };
+            m_sportThrottle.PropertyChanged += (s, e) =>
+            {
+                if (e.Property == Slider.ValueProperty && m_ecoThrottle.Value > m_sportThrottle.Value - 10) m_ecoThrottle.Value = Math.Max(0, m_sportThrottle.Value - 10);
+            };
+
+            m_quickShiftTimeRow = SliderRow("Gear change time when driving hard", m_quickShiftTime, "%");
+            m_shiftAdaptiveOptions = Ui.Stack(8, m_shiftCoast, m_shiftSkip, m_shiftQuick, m_quickShiftTimeRow);
+            m_shiftAdaptiveOptions.Margin = new Thickness(28, 0, 0, 4);
+
+            TextBlock profile = Ui.Text("Shift profile", "strong");
+            profile.Margin = new Thickness(0, 8, 0, 0);
+            m_shiftOptions = Ui.Stack(8,
+                m_shiftAdaptive, m_shiftAdaptiveOptions, m_shiftClassic, m_shiftIndicator,
+                profile,
+                SliderRow("Gentle shift point (idle to redline)", m_shortShift, "%"),
+                SliderRow("Sport shift point (of the redline)", m_sportShift, "%"),
+                SliderRow("Shift early up to this throttle", m_ecoThrottle, "%"),
+                SliderRow("Full sport from this throttle", m_sportThrottle, "%"));
+            m_shiftOptions.Margin = new Thickness(28, 4, 0, 0);
+
+            m_reshifted.IsCheckedChanged += (s, e) => UpdateGearboxVisibility();
+            m_shiftAdaptive.IsCheckedChanged += (s, e) => UpdateGearboxVisibility();
+            m_shiftQuick.IsCheckedChanged += (s, e) => UpdateGearboxVisibility();
+            return Section("Gearbox", m_reshifted, m_shiftOptions);
+        }
+
+        void UpdateGearboxVisibility()
+        {
+            m_shiftOptions.IsVisible = m_reshifted.IsChecked == true;
+            m_shiftAdaptiveOptions.IsVisible = m_shiftAdaptive.IsChecked == true;
+            m_quickShiftTimeRow.IsVisible = m_shiftQuick.IsChecked == true;
+        }
+
         static Control Section(string title, params Control[] items)
         {
             StackPanel p = Ui.Stack(4, Ui.Micro(title));
@@ -1039,6 +1123,19 @@ namespace OpenProStreetLauncher
             m_dumpEvents.IsChecked = s.DumpEvents;
             m_overlay.IsChecked = s.Overlay;
             m_notifications.IsChecked = s.OverlayNotifications;
+            m_reshifted.IsChecked = s.ReShifted;
+            m_shiftAdaptive.IsChecked = s.ShiftStyle != 1;
+            m_shiftClassic.IsChecked = s.ShiftStyle == 1;
+            m_shiftCoast.IsChecked = s.CoastDownshift;
+            m_shiftQuick.IsChecked = s.QuickShift;
+            m_shiftSkip.IsChecked = s.SkipGears;
+            m_shiftIndicator.IsChecked = s.ShiftIndicator;
+            m_shortShift.Value = s.ShortShift;
+            m_sportShift.Value = s.SportShift;
+            m_ecoThrottle.Value = s.EcoThrottle;
+            m_sportThrottle.Value = Math.Max(s.SportThrottle, s.EcoThrottle + 10);
+            m_quickShiftTime.Value = s.QuickShiftTime;
+            UpdateGearboxVisibility();
             m_autoLogin.IsChecked = s.AutoLogin;
             m_username.Text = s.Username;
             m_password.Text = s.Password;
@@ -1071,6 +1168,17 @@ namespace OpenProStreetLauncher
             s.DumpEvents = m_dumpEvents.IsChecked == true;
             s.Overlay = m_overlay.IsChecked == true;
             s.OverlayNotifications = m_notifications.IsChecked == true;
+            s.ReShifted = m_reshifted.IsChecked == true;
+            s.ShiftStyle = m_shiftClassic.IsChecked == true ? 1 : 2;
+            s.CoastDownshift = m_shiftCoast.IsChecked == true;
+            s.QuickShift = m_shiftQuick.IsChecked == true;
+            s.SkipGears = m_shiftSkip.IsChecked == true;
+            s.ShiftIndicator = m_shiftIndicator.IsChecked == true;
+            s.ShortShift = (int)Math.Round(m_shortShift.Value);
+            s.SportShift = (int)Math.Round(m_sportShift.Value);
+            s.EcoThrottle = (int)Math.Round(m_ecoThrottle.Value);
+            s.SportThrottle = (int)Math.Round(m_sportThrottle.Value);
+            s.QuickShiftTime = (int)Math.Round(m_quickShiftTime.Value);
             s.AutoLogin = m_autoLogin.IsChecked == true;
             s.Username = (m_username.Text ?? "").Trim();
             s.Password = m_password.Text ?? "";

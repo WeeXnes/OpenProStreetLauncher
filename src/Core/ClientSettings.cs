@@ -80,6 +80,25 @@ namespace OpenProStreetLauncher
         public bool Overlay = true;              // the standing card and race notifications
         public bool OverlayNotifications = true;
 
+        // ReShifted, the client's automatic gearbox that follows how you drive. ReShifted is the
+        // master switch; the rest only matters while it is on.
+        public bool ReShifted = false;
+        public int ShiftStyle = 2;           // 1 = Classic (throttle only), 2 = Adaptive
+        public bool CoastDownshift = true;   // Adaptive only
+        public bool QuickShift = true;       // Adaptive only
+        public bool SkipGears = true;        // Adaptive only
+        public bool ShiftIndicator = true;   // ECO / SPORT marker in the overlay
+        public int ShortShift = 28;          // gentle shift point, % of the way from idle to redline (10 to 55)
+        public int SportShift = 97;          // highest shift point, % of the redline (88 to 99)
+        public int EcoThrottle = 25;         // up to this much throttle it shifts early (0 to 80)
+        public int SportThrottle = 85;       // from this much throttle it holds to the sport point (up to 100)
+        public int QuickShiftTime = 60;      // gear change time when driven hard, % of stock (30 to 100)
+
+        static int GetInt(IniFile ini, string section, string key, int def, int min, int max)
+        {
+            return int.TryParse((ini.Get(section, key) ?? "").Trim(), out int v) ? System.Math.Clamp(v, min, max) : def;
+        }
+
         // The client logs in with these as soon as the account screen opens.
         public bool AutoLogin = false;
         public string Username = "";
@@ -135,6 +154,17 @@ namespace OpenProStreetLauncher
             s.DumpEvents = ini.GetBool("Debug", "DumpEvents", s.DumpEvents);
             s.Overlay = ini.GetBool("Overlay", "Enabled", s.Overlay);
             s.OverlayNotifications = ini.GetBool("Overlay", "Notifications", s.OverlayNotifications);
+            s.ReShifted = ini.GetBool("Transmission", "ReShifted", s.ReShifted);
+            s.ShiftStyle = GetInt(ini, "ReShifted", "Style", s.ShiftStyle, 1, 2);
+            s.CoastDownshift = ini.GetBool("ReShifted", "CoastDownshift", s.CoastDownshift);
+            s.QuickShift = ini.GetBool("ReShifted", "QuickShift", s.QuickShift);
+            s.SkipGears = ini.GetBool("ReShifted", "SkipGears", s.SkipGears);
+            s.ShiftIndicator = ini.GetBool("ReShifted", "Indicator", s.ShiftIndicator);
+            s.ShortShift = GetInt(ini, "ReShifted", "ShortShiftFraction", s.ShortShift, 10, 55);
+            s.SportShift = GetInt(ini, "ReShifted", "SportRedlineSafety", s.SportShift, 88, 99);
+            s.EcoThrottle = GetInt(ini, "ReShifted", "EcoThrottle", s.EcoThrottle, 0, 80);
+            s.SportThrottle = GetInt(ini, "ReShifted", "SportThrottle", s.SportThrottle, 10, 100);
+            s.QuickShiftTime = GetInt(ini, "ReShifted", "QuickShiftTime", s.QuickShiftTime, 30, 100);
             s.AutoLogin = ini.GetBool("Account", "AutoLogin", s.AutoLogin);
             s.Username = (ini.Get("Account", "Username") ?? "").Trim();
             s.Password = UnprotectPassword(ini.Get("Account", "Password") ?? "");
@@ -157,6 +187,17 @@ namespace OpenProStreetLauncher
             ini.SetBool("Debug", "DumpEvents", DumpEvents);
             ini.SetBool("Overlay", "Enabled", Overlay);
             ini.SetBool("Overlay", "Notifications", OverlayNotifications);
+            ini.SetBool("Transmission", "ReShifted", ReShifted);
+            ini.Set("ReShifted", "Style", ShiftStyle.ToString());
+            ini.SetBool("ReShifted", "CoastDownshift", CoastDownshift);
+            ini.SetBool("ReShifted", "QuickShift", QuickShift);
+            ini.SetBool("ReShifted", "SkipGears", SkipGears);
+            ini.SetBool("ReShifted", "Indicator", ShiftIndicator);
+            ini.Set("ReShifted", "ShortShiftFraction", ShortShift.ToString());
+            ini.Set("ReShifted", "SportRedlineSafety", SportShift.ToString());
+            ini.Set("ReShifted", "EcoThrottle", EcoThrottle.ToString());
+            ini.Set("ReShifted", "SportThrottle", SportThrottle.ToString());
+            ini.Set("ReShifted", "QuickShiftTime", QuickShiftTime.ToString());
             // The password is only kept while automatic login is on.
             ini.SetBool("Account", "AutoLogin", AutoLogin);
             ini.Set("Account", "Username", Username);
