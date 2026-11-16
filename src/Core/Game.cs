@@ -23,6 +23,11 @@ namespace OpenProStreetLauncher
         public static readonly string[] XtendedInputScripts = { XtendedInputAsi, "NFS_XtendedInput.default.ini", "nfs_cursor.cur", "NFS_XtendedInput.LICENSE.txt" };
         public const string XtendedInputIcons = "XtendedInputButtons.tpk";
 
+        // HD reflections, from OpenProStreet's NFSHDReflections mirror. The ini holds the player's own settings.
+        public const string HdReflectionsAsi = "NFSPSHDReflections.asi";
+        public const string HdReflectionsIni = "NFSPSHDReflections.ini";
+        public static readonly string[] HdReflectionsScripts = { HdReflectionsAsi, "NFSPSHDReflections.LICENSE.txt" };
+
         // Linux file names are case sensitive, and Windows installers don't care how they spell them.
         public static string FindFile(string dir, string name)
         {

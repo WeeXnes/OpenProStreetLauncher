@@ -31,7 +31,7 @@ namespace OpenProStreetLauncher
 
         // Home
         TextBlock m_folder, m_status;
-        StatusRow m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts;
+        StatusRow m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowHdReflections, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts;
         Button m_play, m_admin, m_steamPlay;
         Border m_footer;
         StackPanel m_homeReady, m_homeEmpty;
@@ -201,6 +201,7 @@ namespace OpenProStreetLauncher
             m_rowMultiFix = new StatusRow("XNFSPS MultiFix");
             m_rowClient = new StatusRow("OpenProStreet client");
             m_rowControllers = new StatusRow("Controller support");
+            m_rowHdReflections = new StatusRow("HD reflections");
             m_rowTextures = new StatusRow("Texture packs");
             m_rowDxvk = new StatusRow("DXVK (Vulkan)");
             m_rowDxvk.IsVisible = OperatingSystem.IsWindows(); // Proton runs the game on DXVK already
@@ -223,7 +224,7 @@ namespace OpenProStreetLauncher
             m_homeReady = Ui.Stack(0,
                 folderRow,
                 Spaced(Ui.Micro("Components"), 32, 12),
-                List(m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts),
+                List(m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowHdReflections, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts),
                 new Control { Height = 8 });
             page.Children.Add(m_homeReady);
             return page;
@@ -287,6 +288,14 @@ namespace OpenProStreetLauncher
             else
                 m_rowControllers.Set(Ui.Idle, "Off. The game reads controllers through DirectInput.", "Turn on",
                     () => Run("Turning controller support on...", () => Downloads.InstallXtendedInput(m_gameDir, true)));
+
+            // NFS HD Reflections: on while its plugin is in scripts. Updated with the client.
+            if (Game.FindFile(Scripts, Game.HdReflectionsAsi) != null)
+                m_rowHdReflections.Set(Ui.Success, "On (NFSPSHDReflections). Higher-resolution car reflections in races.", "Turn off",
+                    () => Run("Turning HD reflections off...", () => Downloads.RemoveHdReflections(m_gameDir)));
+            else
+                m_rowHdReflections.Set(Ui.Idle, "Off. Cars use the game's built-in 256 px reflections.", "Turn on",
+                    () => Run("Turning HD reflections on...", () => Downloads.InstallHdReflections(m_gameDir, true)));
 
             // Texture packs: unpacked into scripts, where the client swaps them in.
             List<TexturePacks.Pack> packs = TexturePacks.Installed(m_gameDir);
@@ -387,8 +396,9 @@ namespace OpenProStreetLauncher
             Build build = m_latest ?? Downloads.LatestClient();
             m_latest = build;
             Downloads.InstallClient(Scripts, build, replace);
-            // Controller support that's on is updated with the client.
+            // Controller support and HD reflections that are on update with the client.
             if (Game.FindFile(Scripts, Game.XtendedInputAsi) != null) Downloads.InstallXtendedInput(m_gameDir, replace);
+            if (Game.FindFile(Scripts, Game.HdReflectionsAsi) != null) Downloads.InstallHdReflections(m_gameDir, replace);
         });
 
         async Task<bool> EnsureWritable()

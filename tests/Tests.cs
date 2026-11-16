@@ -24,6 +24,7 @@ static class Tests
             IniTests(root);
             TexturePackTests(root);
             DxvkTests(root);
+            HdReflectionsTests(root);
             if (OperatingSystem.IsWindows()) WindowsInstallTests(root);
             SteamTests(root);
             PrefixTests(root);
@@ -535,5 +536,34 @@ static class Tests
         try { Dxvk.InstallFrom(game, new MemoryStream(new byte[] { 0x1F, 0x8B, 8, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 }), "v9.9"); }
         catch (Exception) { empty = true; }
         Check(empty && Directory.GetFiles(game).Length == 0, "an archive without the dll is refused and leaves nothing behind");
+    }
+
+    static void HdReflectionsTests(string root)
+    {
+        Console.WriteLine("HD reflections");
+        Check(Array.IndexOf(Game.HdReflectionsScripts, Game.HdReflectionsAsi) >= 0
+            && Array.IndexOf(Game.HdReflectionsScripts, "NFSPSHDReflections.LICENSE.txt") >= 0,
+            "HD reflections scripts list includes the plugin and GPL license");
+
+        string game = Path.Combine(root, "hdrefl");
+        Directory.CreateDirectory(game);
+
+        Downloads.RemoveHdReflections(game);
+        Check(!Directory.Exists(Path.Combine(game, "scripts")), "removing when scripts folder does not exist is a no-op");
+
+        string scripts = Path.Combine(game, "scripts");
+        Directory.CreateDirectory(scripts);
+        Downloads.RemoveHdReflections(game);
+        Check(!File.Exists(Path.Combine(scripts, Game.HdReflectionsAsi)), "removing when the plugin is absent is a no-op");
+
+        File.WriteAllText(Path.Combine(scripts, Game.HdReflectionsAsi), "asi");
+        File.WriteAllText(Path.Combine(scripts, Game.HdReflectionsIni), "ini");
+        File.WriteAllText(Path.Combine(scripts, "NFSPSHDReflections.LICENSE.txt"), "gplv3");
+
+        Downloads.RemoveHdReflections(game);
+        Check(!File.Exists(Path.Combine(scripts, Game.HdReflectionsAsi))
+            && File.Exists(Path.Combine(scripts, Game.HdReflectionsIni))
+            && File.Exists(Path.Combine(scripts, "NFSPSHDReflections.LICENSE.txt")),
+            "removing HD reflections deletes the asi while keeping user ini and license");
     }
 }

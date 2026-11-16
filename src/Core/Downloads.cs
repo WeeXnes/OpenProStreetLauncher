@@ -24,6 +24,7 @@ namespace OpenProStreetLauncher
         const string LoaderUrl = "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/Win32-latest/dinput8-Win32.zip";
         const string ClientQuery = "\"Project\" is \"OpenProStreetClient\" and \"Job\" is \"Build Release Tag\" and successful";
         const string XtendedInputQuery = "\"Project\" is \"xtendedinput\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
+        const string HdReflectionsQuery = "\"Project\" is \"NFSHDReflections\" and \"Job\" is \"Build\" and \"Branch\" is \"main\" and successful";
         const string MultiFixQuery ="\"Project\" is \"xnfsps-multifix\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
 
         internal static readonly HttpClient Http = CreateClient();
@@ -115,6 +116,12 @@ namespace OpenProStreetLauncher
             if (!File.Exists(sdk)) SaveArtifact(build, Game.DiscordSdk, sdk);
         }
 
+        static void PutArtifactFile(Build build, string dir, string name, bool overwrite)
+        {
+            string target = Game.FindFile(dir, name) ?? Path.Combine(dir, name);
+            if (overwrite || !File.Exists(target)) SaveArtifact(build, name, target);
+        }
+
         // Controller support, from the newest build of OpenProStreet's NFS-XtendedInput fork: replace
         // updates its files; an existing ini holds the player's own settings, so it's never replaced.
         public static void InstallXtendedInput(string gameDir, bool replace)
@@ -123,14 +130,9 @@ namespace OpenProStreetLauncher
             string scripts = Game.ScriptsDir(gameDir), global = Game.GlobalDir(gameDir);
             Directory.CreateDirectory(scripts);
             Directory.CreateDirectory(global);
-            void Put(string dir, string name, bool overwrite)
-            {
-                string target = Game.FindFile(dir, name) ?? Path.Combine(dir, name);
-                if (overwrite || !File.Exists(target)) SaveArtifact(build, name, target);
-            }
-            Put(global, Game.XtendedInputIcons, replace);
-            foreach (string name in Game.XtendedInputScripts) Put(scripts, name, replace);
-            Put(scripts, Game.XtendedInputIni, false);
+            PutArtifactFile(build, global, Game.XtendedInputIcons, replace);
+            foreach (string name in Game.XtendedInputScripts) PutArtifactFile(build, scripts, name, replace);
+            PutArtifactFile(build, scripts, Game.XtendedInputIni, false);
         }
 
         // Turns controller support off. Its settings and the button icons stay, for turning it on again.
@@ -140,15 +142,30 @@ namespace OpenProStreetLauncher
             if (asi != null) File.Delete(asi);
         }
 
+        // High-resolution vehicle reflections (NFSHDReflections mirror on OneDev). Keeps existing ini settings.
+        public static void InstallHdReflections(string gameDir, bool replace)
+        {
+            Build build = LatestBuild(HdReflectionsQuery);
+            string scripts = Game.ScriptsDir(gameDir);
+            Directory.CreateDirectory(scripts);
+            foreach (string name in Game.HdReflectionsScripts) PutArtifactFile(build, scripts, name, replace);
+            PutArtifactFile(build, scripts, Game.HdReflectionsIni, false);
+        }
+
+        // Turns HD reflections off while preserving the player's ini settings.
+        public static void RemoveHdReflections(string gameDir)
+        {
+            string asi = Game.FindFile(Game.ScriptsDir(gameDir), Game.HdReflectionsAsi);
+            if (asi != null) File.Delete(asi);
+        }
+
         // An existing MultiFix ini holds the player's own settings, so it's never replaced.
         public static void InstallMultiFix(string scripts)
         {
             Directory.CreateDirectory(scripts);
             Build build = LatestBuild(MultiFixQuery);
-            string asi = (Game.FindFile(scripts, Game.MultiFixAsi) ?? Path.Combine(scripts, Game.MultiFixAsi));
-            string ini = (Game.FindFile(scripts, Game.MultiFixIni) ?? Path.Combine(scripts, Game.MultiFixIni));
-            if (!File.Exists(asi)) SaveArtifact(build, Game.MultiFixAsi, asi);
-            if (!File.Exists(ini)) SaveArtifact(build, Game.MultiFixIni, ini);
+            PutArtifactFile(build, scripts, Game.MultiFixAsi, false);
+            PutArtifactFile(build, scripts, Game.MultiFixIni, false);
         }
 
         // The zip carries the SHA512 of its dll, and a file that doesn't match it is refused.

@@ -15,7 +15,7 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
 
-    <Version>1.8.0</Version>
+    <Version>1.9.0</Version>
     <Product>OpenProStreet Launcher</Product>
     <Company>WeeXnes</Company>
     <Description>Installs, configures and starts Need for Speed: ProStreet with OpenProStreet on Windows and Linux</Description>
