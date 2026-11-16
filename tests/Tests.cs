@@ -22,6 +22,8 @@ static class Tests
         try
         {
             IniTests(root);
+            TexturePackTests(root);
+            DxvkTests(root);
             if (OperatingSystem.IsWindows()) WindowsInstallTests(root);
             SteamTests(root);
             PrefixTests(root);
@@ -378,5 +380,160 @@ static class Tests
         Section(1, 0x3000, (uint)lastRaw, 0x2000, (uint)lastRaw);
         for (int i = 0x1000; i < b.Length; i++) b[i] = (byte)(i * 7 + 1);
         return b;
+    }
+
+    // Texture packs: a small TexMod pack built here, unpacked into a game folder and removed again.
+    static void TexturePackTests(string root)
+    {
+        Console.WriteLine("Texture packs");
+        string game = Path.Combine(root, "texgame");
+        Directory.CreateDirectory(Path.Combine(game, "scripts"));
+        byte[] first = Encoding.ASCII.GetBytes("DDS first texture, a little longer so it has something to check");
+        byte[] second = Encoding.ASCII.GetBytes("DDS second texture");
+        string def = "0x50EC14EA|NFS.EXE_0x50EC14EA.dds\r\n0x0000BEEF|folder\\Renamed Texture.dds\r\n";
+        string tpf = Path.Combine(root, "My Pack v1.tpf");
+        File.WriteAllBytes(tpf, BuildTpf(("NFS.EXE_0x50EC14EA.dds", first), ("Renamed Texture.dds", second), ("texmod.def", Encoding.ASCII.GetBytes(def))));
+
+        Check(TexturePacks.Installed(game).Count == 0, "a game starts without texture packs");
+        TexturePacks.Pack pack = TexturePacks.Install(game, tpf);
+        string dir = Path.Combine(TexturePacks.Root(game), "My Pack v1");
+        Check(pack.Name == "My Pack v1" && pack.Textures == 2, "a .tpf unpacks into a folder named after it");
+        Check(File.ReadAllBytes(Path.Combine(dir, "50EC14EA.dds")).SequenceEqual(first), "a texture is saved under the id in its name");
+        Check(File.ReadAllBytes(Path.Combine(dir, "0000BEEF.dds")).SequenceEqual(second), "texmod.def gives the id when the file name doesn't");
+        Check(!File.Exists(Path.Combine(dir, "texmod.def")), "texmod.def itself isn't copied");
+        TexturePacks.Install(game, tpf);
+        Check(TexturePacks.Installed(game).Count == 1, "installing the same pack again replaces it");
+
+        string broken = Path.Combine(root, "broken.tpf");
+        byte[] bytes = File.ReadAllBytes(tpf);
+        bytes[70] ^= 0x55; // inside the first texture
+        File.WriteAllBytes(broken, bytes);
+        bool refused = false;
+        try { TexturePacks.Install(game, broken); } catch (InvalidDataException) { refused = true; }
+        Check(refused && TexturePacks.Installed(game).Count == 1 && !Directory.Exists(Path.Combine(TexturePacks.Root(game), ".new-broken")),
+            "a damaged pack is refused and leaves nothing behind");
+        File.WriteAllText(broken, "this is not a pack at all, just some text in a file");
+        refused = false;
+        try { TexturePacks.Install(game, broken); } catch (InvalidDataException) { refused = true; }
+        Check(refused, "a file that isn't a pack is refused");
+
+        TexturePacks.Remove(game, "My Pack v1");
+        Check(TexturePacks.Installed(game).Count == 0 && !Directory.Exists(dir), "removing a pack deletes its folder");
+
+        // A real pack, when one is named: OPS_TEST_TPF=<path to a .tpf>.
+        string real = Environment.GetEnvironmentVariable("OPS_TEST_TPF");
+        if (!string.IsNullOrEmpty(real) && File.Exists(real))
+        {
+            TexturePacks.Pack unpacked = TexturePacks.Install(game, real);
+            Console.WriteLine("  info  " + unpacked.Name + ": " + unpacked.Textures + " textures, " + unpacked.Bytes / (1024 * 1024) + " MB");
+            Check(unpacked.Textures > 0, "the real pack unpacks");
+        }
+    }
+
+    // A TexMod pack: a zip with stored, encrypted entries, then every byte scrambled.
+    static byte[] BuildTpf(params (string name, byte[] data)[] files)
+    {
+        byte[] password =
+        {
+            0x73, 0x2A, 0x63, 0x7D, 0x5F, 0x0A, 0xA6, 0xBD, 0x7D, 0x65, 0x7E, 0x67, 0x61, 0x2A, 0x7F, 0x7F, 0x74, 0x61, 0x67, 0x5B, 0x60,
+            0x70, 0x45, 0x74, 0x5C, 0x22, 0x74, 0x5D, 0x6E, 0x6A, 0x73, 0x41, 0x77, 0x6E, 0x46, 0x47, 0x77, 0x49, 0x0C, 0x4B, 0x46, 0x6F,
+        };
+        uint[] table = new uint[256];
+        for (uint n = 0; n < 256; n++)
+        {
+            uint c = n;
+            for (int k = 0; k < 8; k++) c = (c & 1) != 0 ? (c >> 1) ^ 0xEDB88320 : c >> 1;
+            table[n] = c;
+        }
+        var zip = new MemoryStream();
+        var directory = new MemoryStream();
+        var w = new BinaryWriter(zip);
+        var d = new BinaryWriter(directory);
+        foreach (var file in files)
+        {
+            uint crc = 0xFFFFFFFF;
+            foreach (byte b in file.data) crc = table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+            crc = ~crc;
+            byte[] plain = new byte[12 + file.data.Length];
+            for (int i = 0; i < 11; i++) plain[i] = (byte)(i * 37 + 5);
+            plain[11] = (byte)(crc >> 24);
+            file.data.CopyTo(plain, 12);
+            uint k0 = 0x12345678, k1 = 0x23456789, k2 = 0x34567890;
+            void Update(byte c)
+            {
+                k0 = table[(k0 ^ c) & 0xFF] ^ (k0 >> 8);
+                k1 = unchecked((k1 + (k0 & 0xFF)) * 134775813 + 1);
+                k2 = table[(k2 ^ (k1 >> 24)) & 0xFF] ^ (k2 >> 8);
+            }
+            foreach (byte c in password) Update(c);
+            byte[] packed = new byte[plain.Length];
+            for (int i = 0; i < plain.Length; i++)
+            {
+                uint t = (k2 | 2) & 0xFFFF;
+                packed[i] = (byte)(plain[i] ^ (byte)((t * (t ^ 1)) >> 8));
+                Update(plain[i]);
+            }
+            byte[] name = Encoding.ASCII.GetBytes(file.name);
+            uint offset = (uint)zip.Position;
+            w.Write(0x04034B50u); w.Write((ushort)20); w.Write((ushort)1); w.Write((ushort)0); w.Write(0u);
+            w.Write(crc); w.Write((uint)packed.Length); w.Write((uint)file.data.Length); w.Write((ushort)name.Length); w.Write((ushort)0);
+            w.Write(name); w.Write(packed);
+            d.Write(0x02014B50u); d.Write((ushort)20); d.Write((ushort)20); d.Write((ushort)1); d.Write((ushort)0); d.Write(0u);
+            d.Write(crc); d.Write((uint)packed.Length); d.Write((uint)file.data.Length); d.Write((ushort)name.Length); d.Write((ushort)0);
+            d.Write((ushort)0); d.Write((ushort)0); d.Write((ushort)0); d.Write(0u); d.Write(offset); d.Write(name);
+        }
+        uint directoryAt = (uint)zip.Position;
+        w.Write(directory.ToArray());
+        w.Write(0x06054B50u); w.Write((ushort)0); w.Write((ushort)0); w.Write((ushort)files.Length); w.Write((ushort)files.Length);
+        w.Write((uint)directory.Length); w.Write(directoryAt); w.Write((ushort)0);
+        w.Write(new byte[37]); // TexMod leaves bytes after the end
+        byte[] result = zip.ToArray();
+        byte[] scramble = { 0xA4, 0x3F, 0xA4, 0x3F };
+        for (int i = 0; i < result.Length; i++) result[i] ^= scramble[i & 3];
+        return result;
+    }
+
+    // DXVK: its 32-bit d3d9.dll goes next to nfs.exe, and comes out again.
+    static void DxvkTests(string root)
+    {
+        Console.WriteLine("DXVK");
+        string game = Path.Combine(root, "dxvkgame");
+        Directory.CreateDirectory(game);
+        byte[] dll32 = Encoding.ASCII.GetBytes("MZ the 32-bit one");
+        byte[] dll64 = Encoding.ASCII.GetBytes("MZ the 64-bit one, which the game can't load");
+        var archive = new MemoryStream();
+        using (var zipped = new System.IO.Compression.GZipStream(archive, System.IO.Compression.CompressionMode.Compress, true))
+        using (var tar = new System.Formats.Tar.TarWriter(zipped))
+        {
+            foreach (var file in new[] { ("dxvk-9.9/x64/d3d9.dll", dll64), ("dxvk-9.9/x32/d3d9.dll", dll32), ("dxvk-9.9/x32/d3d11.dll", dll64) })
+            {
+                var entry = new System.Formats.Tar.PaxTarEntry(System.Formats.Tar.TarEntryType.RegularFile, file.Item1) { DataStream = new MemoryStream(file.Item2) };
+                tar.WriteEntry(entry);
+            }
+        }
+
+        byte[] packed = archive.ToArray(); // installing closes the stream it reads
+
+        Check(!Dxvk.IsInstalled(game) && !Dxvk.HasOtherDll(game) && Dxvk.InstalledVersion(game) == null, "a game starts without DXVK");
+        archive = new MemoryStream(packed);
+        Dxvk.InstallFrom(game, archive, "v9.9");
+        Check(File.ReadAllBytes(Path.Combine(game, "d3d9.dll")).SequenceEqual(dll32), "the 32-bit d3d9.dll is installed, not the 64-bit one");
+        Check(Dxvk.IsInstalled(game) && Dxvk.InstalledVersion(game) == "v9.9", "it knows DXVK is installed, and which version");
+        Check(Directory.GetFiles(game).Length == 2, "nothing else from the archive is copied");
+        Dxvk.Remove(game);
+        Check(Directory.GetFiles(game).Length == 0 && !Dxvk.IsInstalled(game), "turning it off removes the dll");
+
+        File.WriteAllText(Path.Combine(game, "d3d9.dll"), "MZ someone else's, such as ReShade");
+        bool refused = false;
+        archive = new MemoryStream(packed);
+        try { Dxvk.InstallFrom(game, archive, "v9.9"); } catch (InvalidOperationException) { refused = true; }
+        Dxvk.Remove(game);
+        Check(refused && Dxvk.HasOtherDll(game) && File.ReadAllText(Path.Combine(game, "d3d9.dll")).StartsWith("MZ someone"), "a d3d9.dll from something else is never replaced or removed");
+        File.Delete(Path.Combine(game, "d3d9.dll"));
+
+        bool empty = false;
+        try { Dxvk.InstallFrom(game, new MemoryStream(new byte[] { 0x1F, 0x8B, 8, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 }), "v9.9"); }
+        catch (Exception) { empty = true; }
+        Check(empty && Directory.GetFiles(game).Length == 0, "an archive without the dll is refused and leaves nothing behind");
     }
 }

@@ -31,7 +31,7 @@ namespace OpenProStreetLauncher
 
         // Home
         TextBlock m_folder, m_status;
-        StatusRow m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowSteam, m_rowConflicts;
+        StatusRow m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts;
         Button m_play, m_admin, m_steamPlay;
         Border m_footer;
         StackPanel m_homeReady, m_homeEmpty;
@@ -201,6 +201,9 @@ namespace OpenProStreetLauncher
             m_rowMultiFix = new StatusRow("XNFSPS MultiFix");
             m_rowClient = new StatusRow("OpenProStreet client");
             m_rowControllers = new StatusRow("Controller support");
+            m_rowTextures = new StatusRow("Texture packs");
+            m_rowDxvk = new StatusRow("DXVK (Vulkan)");
+            m_rowDxvk.IsVisible = OperatingSystem.IsWindows(); // Proton runs the game on DXVK already
             m_rowSteam = new StatusRow(OperatingSystem.IsWindows() ? "Steam shortcut" : "Steam and Proton");
             m_rowConflicts = new StatusRow("Conflicting plugins", true);
 
@@ -220,7 +223,7 @@ namespace OpenProStreetLauncher
             m_homeReady = Ui.Stack(0,
                 folderRow,
                 Spaced(Ui.Micro("Components"), 32, 12),
-                List(m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowSteam, m_rowConflicts),
+                List(m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts),
                 new Control { Height = 8 });
             page.Children.Add(m_homeReady);
             return page;
@@ -284,6 +287,23 @@ namespace OpenProStreetLauncher
             else
                 m_rowControllers.Set(Ui.Idle, "Off. The game reads controllers through DirectInput.", "Turn on",
                     () => Run("Turning controller support on...", () => Downloads.InstallXtendedInput(m_gameDir, true)));
+
+            // Texture packs: unpacked into scripts, where the client swaps them in.
+            List<TexturePacks.Pack> packs = TexturePacks.Installed(m_gameDir);
+            if (packs.Count == 0)
+                m_rowTextures.Set(Ui.Idle, "None. Add a TexMod pack (.tpf) to change how the game looks.", "Add pack", AddTexturePack);
+            else
+                m_rowTextures.Set(Ui.Success, string.Join(", ", packs.Select(p => p.Name + " (" + p.Textures + " textures)")), "Manage", ManageTexturePacks);
+
+            // DXVK: its d3d9.dll next to nfs.exe. One from something else is left alone.
+            if (Dxvk.IsInstalled(m_gameDir))
+                m_rowDxvk.Set(Ui.Success, "On (" + Dxvk.InstalledVersion(m_gameDir) + "). The game draws through Vulkan, so ReShade's Vulkan version works with it.", "Turn off",
+                    () => Run("Turning DXVK off...", () => Dxvk.Remove(m_gameDir)));
+            else if (Dxvk.HasOtherDll(m_gameDir))
+                m_rowDxvk.Set(Ui.Warning, "Another d3d9.dll is in the game folder, such as ReShade for DirectX 9. Remove it to use DXVK.");
+            else
+                m_rowDxvk.Set(Ui.Idle, "Off. The game draws through DirectX 9. DXVK needs a graphics card and driver with current Vulkan support.", "Turn on",
+                    () => Run("Downloading DXVK...", () => Dxvk.Install(m_gameDir)));
 
             if (OperatingSystem.IsWindows())
             {
@@ -429,6 +449,58 @@ namespace OpenProStreetLauncher
                 m_busy = false;
                 RefreshHome();
             }
+        }
+
+        async Task AddTexturePack()
+        {
+            string file = await PickFile("TexMod texture pack", "*.tpf", "*.zip");
+            if (file == null) return;
+            await Run("Unpacking the texture pack. A large one takes a moment...", () => TexturePacks.Install(m_gameDir, file));
+        }
+
+        // The installed packs, each with a way to remove it, and a way to add another.
+        async Task ManageTexturePacks()
+        {
+            Func<Task> next = null;
+            Window w = new Window
+            {
+                Title = "Texture packs",
+                Width = 520,
+                SizeToContent = SizeToContent.Height,
+                CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ShowInTaskbar = false,
+            };
+            StackPanel list = new StackPanel { Spacing = 12 };
+            foreach (TexturePacks.Pack pack in TexturePacks.Installed(m_gameDir))
+            {
+                string name = pack.Name;
+                Grid row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+                StackPanel text = Ui.Stack(2, Ui.Text(name, "strong"),
+                    Ui.Text(pack.Textures + " textures, " + (pack.Bytes / (1024 * 1024)) + " MB", "small"));
+                text.VerticalAlignment = VerticalAlignment.Center;
+                row.Children.Add(text);
+                Button remove = Ui.Button("Remove", false, () =>
+                {
+                    next = () => Run("Removing the texture pack...", () => TexturePacks.Remove(m_gameDir, name));
+                    w.Close();
+                });
+                Grid.SetColumn(remove, 1);
+                row.Children.Add(remove);
+                list.Children.Add(row);
+            }
+            StackPanel buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Right };
+            buttons.Children.Add(Ui.Button("Add pack", false, () => { next = AddTexturePack; w.Close(); }));
+            buttons.Children.Add(Ui.Button("Close", true, () => w.Close()));
+            w.Content = new Border
+            {
+                Padding = new Thickness(28),
+                Child = Ui.Stack(16, Ui.Text("Texture packs", "strong"),
+                    Ui.Text("When two packs change the same texture, the one later in the alphabet wins. Changes show the next time the game starts.", "small"),
+                    list, buttons),
+            };
+            await w.ShowDialog(this);
+            if (next != null) await next();
         }
 
         async Task<string> PickFile(string title, params string[] patterns)

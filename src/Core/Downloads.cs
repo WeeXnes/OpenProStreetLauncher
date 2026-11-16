@@ -26,7 +26,7 @@ namespace OpenProStreetLauncher
         const string XtendedInputQuery = "\"Project\" is \"xtendedinput\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
         const string MultiFixQuery ="\"Project\" is \"xnfsps-multifix\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
 
-        static readonly HttpClient Http = CreateClient();
+        internal static readonly HttpClient Http = CreateClient();
 
         static HttpClient CreateClient()
         {
@@ -77,7 +77,7 @@ namespace OpenProStreetLauncher
             return new Version(v.Major, v.Minor, Math.Max(v.Build, 0));
         }
 
-        static void SaveUrl(string url, string target)
+        internal static void SaveUrl(string url, string target)
         {
             using HttpResponseMessage response = Http.Send(new HttpRequestMessage(HttpMethod.Get, url), HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
