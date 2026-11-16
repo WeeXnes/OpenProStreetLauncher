@@ -118,7 +118,7 @@ static class Tests
         Check(newText.Contains("[Overlay]") && newText.Contains("Enabled=1") && newText.Contains("Notifications=1"), "a new file lists the overlay keys with their defaults");
 
         Console.WriteLine("Gearbox");
-        Check(!fresh.ReShifted && fresh.ShiftStyle == 2 && fresh.CoastDownshift && fresh.QuickShift && fresh.SkipGears && fresh.ShiftIndicator &&
+        Check(!fresh.ReShifted && fresh.ShiftStyle == 2 && fresh.SportMemory && fresh.CoastDownshift && fresh.QuickShift && fresh.SkipGears && fresh.ShiftIndicator &&
               fresh.ShortShift == 28 && fresh.SportShift == 97 && fresh.EcoThrottle == 25 && fresh.SportThrottle == 85 && fresh.QuickShiftTime == 60,
               "ReShifted is off by default, with the client's defaults under it");
         string gearbox = Path.Combine(root, "gearbox.ini");
@@ -126,13 +126,14 @@ static class Tests
         ClientSettings g = ClientSettings.Load(gearbox);
         Check(g.ReShifted && g.ShiftStyle == 1 && g.ShortShift == 55, "the master switch and style are read, and values are kept in range");
         g.ShiftStyle = 2;
+        g.SportMemory = false;
         g.CoastDownshift = false;
         g.EcoThrottle = 40;
         g.Save(gearbox);
         string gearboxText = File.ReadAllText(gearbox);
         Check(gearboxText.Contains("KickdownAggression=110") && gearboxText.Contains("Log=1"), "the client's other gearbox keys are kept");
         ClientSettings g2 = ClientSettings.Load(gearbox);
-        Check(g2.ReShifted && g2.ShiftStyle == 2 && !g2.CoastDownshift && g2.EcoThrottle == 40 && g2.ShortShift == 55, "what was saved reads back");
+        Check(g2.ReShifted && g2.ShiftStyle == 2 && !g2.SportMemory && !g2.CoastDownshift && g2.EcoThrottle == 40 && g2.ShortShift == 55, "what was saved reads back");
 
         Console.WriteLine("Automatic login");
         string account = Path.Combine(root, "account.ini");

@@ -84,6 +84,7 @@ namespace OpenProStreetLauncher
         // master switch; the rest only matters while it is on.
         public bool ReShifted = false;
         public int ShiftStyle = 2;           // 1 = Classic (throttle only), 2 = Adaptive
+        public bool SportMemory = true;      // Adaptive only: remember recent hard driving
         public bool CoastDownshift = true;   // Adaptive only
         public bool QuickShift = true;       // Adaptive only
         public bool SkipGears = true;        // Adaptive only
@@ -156,6 +157,7 @@ namespace OpenProStreetLauncher
             s.OverlayNotifications = ini.GetBool("Overlay", "Notifications", s.OverlayNotifications);
             s.ReShifted = ini.GetBool("Transmission", "ReShifted", s.ReShifted);
             s.ShiftStyle = GetInt(ini, "ReShifted", "Style", s.ShiftStyle, 1, 2);
+            s.SportMemory = ini.GetBool("ReShifted", "SportMemory", s.SportMemory);
             s.CoastDownshift = ini.GetBool("ReShifted", "CoastDownshift", s.CoastDownshift);
             s.QuickShift = ini.GetBool("ReShifted", "QuickShift", s.QuickShift);
             s.SkipGears = ini.GetBool("ReShifted", "SkipGears", s.SkipGears);
@@ -189,6 +191,7 @@ namespace OpenProStreetLauncher
             ini.SetBool("Overlay", "Notifications", OverlayNotifications);
             ini.SetBool("Transmission", "ReShifted", ReShifted);
             ini.Set("ReShifted", "Style", ShiftStyle.ToString());
+            ini.SetBool("ReShifted", "SportMemory", SportMemory);
             ini.SetBool("ReShifted", "CoastDownshift", CoastDownshift);
             ini.SetBool("ReShifted", "QuickShift", QuickShift);
             ini.SetBool("ReShifted", "SkipGears", SkipGears);

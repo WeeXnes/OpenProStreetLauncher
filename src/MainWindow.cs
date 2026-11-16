@@ -48,7 +48,7 @@ namespace OpenProStreetLauncher
         RadioButton m_serverDefault, m_serverCustom, m_serverLan;
         TextBox m_address, m_port, m_username, m_password;
         CheckBox m_autoLogin;
-        CheckBox m_reshifted, m_shiftCoast, m_shiftQuick, m_shiftSkip, m_shiftIndicator;
+        CheckBox m_reshifted, m_shiftMemory, m_shiftCoast, m_shiftQuick, m_shiftSkip, m_shiftIndicator;
         RadioButton m_shiftAdaptive, m_shiftClassic;
         Slider m_shortShift, m_sportShift, m_ecoThrottle, m_sportThrottle, m_quickShiftTime;
         StackPanel m_shiftOptions, m_shiftAdaptiveOptions;
@@ -1028,9 +1028,10 @@ namespace OpenProStreetLauncher
         // Adaptive extras only while that style is picked.
         Control BuildGearboxSection()
         {
-            m_reshifted = new CheckBox { Content = "ReShifted: an automatic gearbox that shifts early when you drive gently and late when you drive hard" };
-            m_shiftAdaptive = new RadioButton { Content = "Adaptive: also remembers how hard you have been driving", GroupName = "shiftStyle" };
+            m_reshifted = new CheckBox { Content = "ReShifted: automatic gearbox that follows how you drive" };
+            m_shiftAdaptive = new RadioButton { Content = "Adaptive: customizable coast downshifts, kickdown skips, and quick shifts", GroupName = "shiftStyle" };
             m_shiftClassic = new RadioButton { Content = "Classic: follows the throttle only, one gear at a time", GroupName = "shiftStyle" };
+            m_shiftMemory = new CheckBox { Content = "Remember recent hard driving before returning to ECO" };
             m_shiftCoast = new CheckBox { Content = "Shift down while coasting off the throttle" };
             m_shiftQuick = new CheckBox { Content = "Quicker gear changes when driving hard" };
             m_shiftSkip = new CheckBox { Content = "Kickdown can skip gears" };
@@ -1051,7 +1052,7 @@ namespace OpenProStreetLauncher
             };
 
             m_quickShiftTimeRow = SliderRow("Gear change time when driving hard", m_quickShiftTime, "%");
-            m_shiftAdaptiveOptions = Ui.Stack(8, m_shiftCoast, m_shiftSkip, m_shiftQuick, m_quickShiftTimeRow);
+            m_shiftAdaptiveOptions = Ui.Stack(8, m_shiftMemory, m_shiftCoast, m_shiftSkip, m_shiftQuick, m_quickShiftTimeRow);
             m_shiftAdaptiveOptions.Margin = new Thickness(28, 0, 0, 4);
 
             TextBlock profile = Ui.Text("Shift profile", "strong");
@@ -1126,6 +1127,7 @@ namespace OpenProStreetLauncher
             m_reshifted.IsChecked = s.ReShifted;
             m_shiftAdaptive.IsChecked = s.ShiftStyle != 1;
             m_shiftClassic.IsChecked = s.ShiftStyle == 1;
+            m_shiftMemory.IsChecked = s.SportMemory;
             m_shiftCoast.IsChecked = s.CoastDownshift;
             m_shiftQuick.IsChecked = s.QuickShift;
             m_shiftSkip.IsChecked = s.SkipGears;
@@ -1170,6 +1172,7 @@ namespace OpenProStreetLauncher
             s.OverlayNotifications = m_notifications.IsChecked == true;
             s.ReShifted = m_reshifted.IsChecked == true;
             s.ShiftStyle = m_shiftClassic.IsChecked == true ? 1 : 2;
+            s.SportMemory = m_shiftMemory.IsChecked == true;
             s.CoastDownshift = m_shiftCoast.IsChecked == true;
             s.QuickShift = m_shiftQuick.IsChecked == true;
             s.SkipGears = m_shiftSkip.IsChecked == true;
