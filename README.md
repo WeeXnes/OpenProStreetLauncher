@@ -33,6 +33,7 @@ Built with [Avalonia UI](https://avaloniaui.net/) (.NET 9), it provides a native
   - Elevated permissions (UAC) support when game is in protected directories like `Program Files`.
 - **Linux & Steam Deck Features:**
   - Proton Prefix setup and game installation from DVD ISO images or existing folders.
+  - **Uninstall** next to the game folder deletes the launcher's prefix with the game in it, for a clean reinstall from the Install page. It's only offered for a game the launcher installed; a folder you picked yourself is never deleted. The Steam entry stays and is reused.
   - Automatic `nfs.exe` section header fix (`ExeFix`) for smooth Proton execution.
   - Desktop integration: `install` command registers desktop shortcut, menu entry, and hicolor icons for application launchers (GNOME, KDE, Rofi `drun`).
   - In-place auto-update via CLI (`update` command).

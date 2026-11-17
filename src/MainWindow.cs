@@ -32,7 +32,7 @@ namespace OpenProStreetLauncher
         // Home
         TextBlock m_folder, m_status;
         StatusRow m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowHdReflections, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts;
-        Button m_play, m_admin, m_steamPlay;
+        Button m_play, m_admin, m_steamPlay, m_uninstallGame;
         Border m_footer;
         StackPanel m_homeReady, m_homeEmpty;
 
@@ -197,9 +197,13 @@ namespace OpenProStreetLauncher
             Grid folderRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
             folderRow.Children.Add(Ui.Stack(6, Ui.Micro("Game folder"), m_folder));
             Button change = Ui.Button("Change", false, async () => await ChooseFolder());
-            change.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(change, 1);
-            folderRow.Children.Add(change);
+            m_uninstallGame = Ui.Button("Uninstall", false, async () => await UninstallGame());
+            m_uninstallGame.IsVisible = false;
+            StackPanel folderButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
+            folderButtons.Children.Add(m_uninstallGame);
+            folderButtons.Children.Add(change);
+            Grid.SetColumn(folderButtons, 1);
+            folderRow.Children.Add(folderButtons);
 
             m_rowGame = new StatusRow("Game");
             m_rowLoader = new StatusRow("Ultimate ASI Loader");
@@ -258,6 +262,8 @@ namespace OpenProStreetLauncher
             if (!have) return;
 
             m_folder.Text = m_gameDir;
+            m_uninstallGame.IsVisible = OperatingSystem.IsLinux() && GameUninstall.IsInLauncherPrefix(m_gameDir);
+            m_uninstallGame.IsEnabled = !m_busy;
             m_play.IsEnabled = !m_busy;
             m_steamPlay.IsEnabled = !m_busy;
             string exe = Game.ExePath(m_gameDir);
@@ -516,6 +522,31 @@ namespace OpenProStreetLauncher
             };
             await w.ShowDialog(this);
             if (next != null) await next();
+        }
+
+        // Linux: deletes the launcher's prefix with the game in it, so it can be installed again
+        // from the Install page. Only offered for a game the launcher installed into its prefix.
+        async Task UninstallGame()
+        {
+            if (m_busy || !OperatingSystem.IsLinux() || !GameUninstall.IsInLauncherPrefix(m_gameDir)) return;
+            string prefix = LauncherSettings.PrefixDir;
+            if (!await Dialog.Ask(this, "Uninstall the game",
+                    "This deletes " + prefix + ": the game, every mod and file in its folder, the client's settings and saved login, and the prefix's Windows settings. " +
+                    "If the game is running, it's closed. The Steam entry stays, and installing again from the Install page uses it." +
+                    "\n\nThis can't be undone.", "Uninstall", "Cancel"))
+                return;
+            ProtonTool tool = m_steam?.ProtonTools().FirstOrDefault();
+            bool done = false;
+            await Run("Uninstalling the game...", () =>
+            {
+                GameUninstall.Uninstall(tool, prefix);
+                done = true;
+            });
+            if (!done) return;
+            m_gameDir = null;
+            SetStatus("");
+            ShowPage(m_homePage);
+            await Dialog.Show(this, "Game uninstalled", "The prefix is gone. Install the game again from the Install page.");
         }
 
         async Task<string> PickFile(string title, params string[] patterns)

@@ -279,6 +279,25 @@ static class Tests
         Directory.CreateDirectory(elsewhere);
         File.WriteAllText(Path.Combine(elsewhere, "nfs.exe"), "x");
         Check(WinePrefix.FindGame(unregistered) == elsewhere, "without a registry entry, drive_c is searched");
+
+        Console.WriteLine("Uninstalling the game");
+        Check(GameUninstall.IsInLauncherPrefix(game, prefix), "a game in the prefix can be uninstalled");
+        Check(!GameUninstall.IsInLauncherPrefix(Path.Combine(root, "pfxtest-other", "game"), prefix), "a folder next to the prefix isn't in it");
+        Check(!GameUninstall.IsInLauncherPrefix(root, prefix), "the prefix's parent isn't in it");
+        if (!OperatingSystem.IsWindows())
+        {
+            // Like dosdevices/z: pointing at /, a link out of the prefix is removed, not followed.
+            string outside = Path.Combine(root, "outside");
+            Directory.CreateDirectory(outside);
+            File.WriteAllText(Path.Combine(outside, "keep.txt"), "x");
+            string dosdevices = Path.Combine(prefix, "pfx", "dosdevices");
+            Directory.CreateDirectory(dosdevices);
+            Directory.CreateSymbolicLink(Path.Combine(dosdevices, "z:"), outside);
+            File.CreateSymbolicLink(Path.Combine(dosdevices, "file-link"), Path.Combine(outside, "keep.txt"));
+            GameUninstall.DeleteTree(prefix);
+            Check(!Directory.Exists(prefix), "the prefix is deleted");
+            Check(File.Exists(Path.Combine(outside, "keep.txt")), "what its links point to is left alone");
+        }
     }
 
     static void DiscTests(string root)
