@@ -53,7 +53,7 @@ namespace OpenProStreetLauncher
         Slider m_shortShift, m_sportShift, m_ecoThrottle, m_sportThrottle, m_quickShiftTime;
         StackPanel m_shiftOptions, m_shiftAdaptiveOptions;
         Control m_quickShiftTimeRow;
-        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_overlay, m_notifications, m_verbose, m_colour, m_dumpEvents;
+        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_uncap, m_overlay, m_notifications, m_verbose, m_colour, m_dumpEvents;
         TextBlock m_settingsNote;
         TextBlock m_installText;
         Button m_installButton2, m_uninstallButton;
@@ -262,6 +262,7 @@ namespace OpenProStreetLauncher
             if (!have) return;
 
             m_folder.Text = m_gameDir;
+            Framerate.FixOnce(m_gameDir);
             m_uninstallGame.IsVisible = OperatingSystem.IsLinux() && GameUninstall.IsInLauncherPrefix(m_gameDir);
             m_uninstallGame.IsEnabled = !m_busy;
             m_play.IsEnabled = !m_busy;
@@ -922,7 +923,8 @@ namespace OpenProStreetLauncher
             page.Children.Add(Section("Car fixes", m_tank, m_speed));
             page.Children.Add(BuildGearboxSection());
             m_console = new CheckBox { Content = "Show the console window, with MultiFix's and the client's log" };
-            page.Children.Add(Section("Display", m_borderless, m_vibration, m_console));
+            m_uncap = new CheckBox { Content = "Uncap the frame rate in races (otherwise the game limits them to 30 fps)" };
+            page.Children.Add(Section("Display", m_borderless, m_vibration, m_uncap, m_console));
             m_overlay = new CheckBox { Content = "Your times and place in races" };
             m_notifications = new CheckBox { Content = "Race notifications" };
             page.Children.Add(Section("Overlay", m_overlay, m_notifications));
@@ -1134,6 +1136,9 @@ namespace OpenProStreetLauncher
             bool? console = ConsoleWindow.Shown(m_gameDir);
             m_console.IsChecked = console == true;
             m_console.IsEnabled = console != null;
+            bool? uncapped = Framerate.Uncapped(m_gameDir);
+            m_uncap.IsChecked = uncapped != false;
+            m_uncap.IsEnabled = uncapped != null;
             m_settingsNote.Text = File.Exists(ini) ? "Saved in scripts/" + Game.ClientIni : "scripts/" + Game.ClientIni + " doesn't exist yet. Save creates it.";
         }
 
@@ -1226,6 +1231,8 @@ namespace OpenProStreetLauncher
                 s.Save(ClientSettings.PathIn(m_gameDir));
                 if (ConsoleWindow.Shown(m_gameDir) is bool shown && shown != (m_console.IsChecked == true))
                     ConsoleWindow.Set(m_gameDir, m_console.IsChecked == true);
+                if (Framerate.Uncapped(m_gameDir) is bool uncapped && uncapped != (m_uncap.IsChecked == true))
+                    Framerate.Set(m_gameDir, m_uncap.IsChecked == true);
                 m_settingsNote.Text = "Saved. The game uses them the next time it starts.";
             }
             catch (Exception e) { await Dialog.Show(this, "Couldn't save", e.Message); }

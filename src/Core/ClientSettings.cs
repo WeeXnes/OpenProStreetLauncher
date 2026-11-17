@@ -62,6 +62,43 @@ namespace OpenProStreetLauncher
         }
     }
 
+    // MultiFix's FramerateUncap. Without it the game limits races to 30 fps (nfs.exe waits until
+    // 33.3 ms have passed since the last frame while racing); menus aren't limited either way.
+    // MultiFix treats a missing key as on.
+    static class Framerate
+    {
+        // null when there's no MultiFix ini to tell from.
+        public static bool? Uncapped(string gameDir)
+        {
+            string path = ConsoleWindow.IniPath(gameDir);
+            return path == null ? null : new IniFile(path).GetBool("MultiFix", "FramerateUncap", true);
+        }
+
+        public static void Set(string gameDir, bool uncapped)
+        {
+            string path = ConsoleWindow.IniPath(gameDir);
+            if (path == null) return;
+            IniFile ini = new IniFile(path);
+            if (ini.GetBool("MultiFix", "FramerateUncap", true) == uncapped) return;
+            ini.SetBool("MultiFix", "FramerateUncap", uncapped);
+            ini.Save();
+        }
+
+        // The launcher's MultiFix download shipped its ini with the uncap off from 6 to 17 November
+        // 2026, so those installs raced at 30 fps. Turns it on once; after that the setting is the
+        // player's.
+        public static void FixOnce(string gameDir)
+        {
+            if (LauncherSettings.FramerateUncapFixed || ConsoleWindow.IniPath(gameDir) == null) return;
+            try
+            {
+                Set(gameDir, true);
+                LauncherSettings.FramerateUncapFixed = true;
+            }
+            catch (System.Exception) { }
+        }
+    }
+
     // scripts/OpenProStreetClient.ini, with the same defaults the client uses when a key is missing.
     class ClientSettings
     {

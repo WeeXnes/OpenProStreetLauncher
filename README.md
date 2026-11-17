@@ -23,6 +23,7 @@ Built with [Avalonia UI](https://avaloniaui.net/) (.NET 9), it provides a native
   - Detects and disables conflicting mods (such as `NFSProStreet.FusionFix` and `ProStreetRPC`).
 - **Complete In-App Configuration:**
   - Visual editor for `scripts/OpenProStreetClient.ini`: server connection (official, custom, or LAN search), physics fixes (no tank slapper, no speed limiter), display options (borderless window, camera vibration, console window), and advanced debugging.
+  - Uncaps the frame rate in races through MultiFix's `FramerateUncap` (without it the game limits races to 30 fps). It's on by default and a setting turns it off. Installs whose MultiFix ini had it off get it turned on once.
 - **Steam Integration:**
   - Adds the game as a non-Steam game: **Need for Speed: ProStreet (OpenProStreet)** to all local Steam user profiles.
   - Automatically handles `shortcuts.vdf` backups (`*.openprostreet.bak`).

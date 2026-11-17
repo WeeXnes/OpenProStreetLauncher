@@ -173,6 +173,17 @@ static class Tests
         ConsoleWindow.Set(game, true);
         Check(File.ReadAllBytes(exePath).SequenceEqual(exeBytes) && File.ReadAllText(multifixPath) == multifix, "showing it again restores both files exactly");
 
+        Console.WriteLine("Frame rate");
+        Check(Framerate.Uncapped(game) == false, "FramerateUncap = 0 reads as capped");
+        Framerate.Set(game, true);
+        Check(Framerate.Uncapped(game) == true && File.ReadAllText(multifixPath) == multifix.Replace("FramerateUncap = 0", "FramerateUncap = 1"), "uncapping changes only that line");
+        Framerate.Set(game, false);
+        Check(File.ReadAllText(multifixPath) == multifix, "capping it again restores the file exactly");
+        File.WriteAllText(multifixPath, "[MultiFix]\r\nPostRaceFix = 1\r\n");
+        Check(Framerate.Uncapped(game) == true, "a missing key is uncapped, as MultiFix reads it");
+        File.WriteAllText(multifixPath, multifix);
+        Check(Framerate.Uncapped(Path.Combine(root, "nogame")) == null, "without a MultiFix ini there's no setting");
+
         string created = Path.Combine(root, "new", "scripts", "OpenProStreetClient.ini");
         new ClientSettings().Save(created);
         Check(File.ReadAllText(created).StartsWith("; OpenProStreet client settings"), "a new file starts with a note");

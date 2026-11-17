@@ -212,17 +212,26 @@ namespace OpenProStreetLauncher
         public static string GameDir
         {
             get => new IniFile(FilePath).Get("Launcher", "GameDir");
-            set
+            set => Save("GameDir", value);
+        }
+
+        // Set once the launcher has turned MultiFix's frame rate uncap on (see Framerate.FixOnce).
+        public static bool FramerateUncapFixed
+        {
+            get => new IniFile(FilePath).GetBool("Launcher", "FramerateUncapFixed", false);
+            set => Save("FramerateUncapFixed", value ? "1" : "0");
+        }
+
+        static void Save(string key, string value)
+        {
+            try
             {
-                try
-                {
-                    Directory.CreateDirectory(ConfigDir);
-                    IniFile ini = new IniFile(FilePath);
-                    ini.Set("Launcher", "GameDir", value);
-                    ini.Save();
-                }
-                catch (Exception) { }
+                Directory.CreateDirectory(ConfigDir);
+                IniFile ini = new IniFile(FilePath);
+                ini.Set("Launcher", key, value);
+                ini.Save();
             }
+            catch (Exception) { }
         }
     }
 }
