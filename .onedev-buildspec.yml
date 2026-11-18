@@ -156,3 +156,25 @@ jobs:
   includeUpstreamWhenRebuild: false
   includeDownstreamWhenRebuild: false
   timeout: 3600
+- name: Mirror to GitHub
+  executeInSandbox: false
+  jobExecutor: Builder
+  steps:
+  - type: PushRepository
+    name: push to github.com/WeeXnes/OpenProStreetLauncher
+    remoteUrl: https://github.com/WeeXnes/OpenProStreetLauncher.git
+    userName: WeeXnes
+    passwordSecret: github-mirror-token
+    force: false
+    condition: SUCCESSFUL
+    optional: false
+  triggers:
+  - type: BranchUpdateTrigger
+    userMatch: anyone
+  - type: TagCreateTrigger
+  retryCondition: never
+  maxAttempts: 4
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600
