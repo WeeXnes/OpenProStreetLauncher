@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/logo.png" width="96" alt="" />
   <h1>OpenProStreet Launcher</h1>
-  <p>Unified cross-platform launcher for Need for Speed: ProStreet with <a href="https://code.weexnes.dev/OpenProStreet">OpenProStreet</a> on Windows, Linux and the Steam Deck.</p>
+  <p>Unified cross-platform launcher for Need for Speed: ProStreet with OpenProStreet on Windows, Linux and the Steam Deck.</p>
   <p>
     <a href="https://code.weexnes.dev/OpenProStreetClient/OpenProStreetLauncher"><img src="https://img.shields.io/badge/download-latest-000000?style=flat-square&labelColor=1f1f1f" alt="Download" /></a>
     <a href="#install"><img src="https://img.shields.io/badge/platform-Windows%20%C2%B7%20Linux%20%C2%B7%20Steam%20Deck-000000?style=flat-square&labelColor=1f1f1f" alt="Platform" /></a>
