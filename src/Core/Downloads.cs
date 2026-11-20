@@ -22,7 +22,7 @@ namespace OpenProStreetLauncher
     {
         const string OneDev = "https://code.weexnes.dev";
         const string LoaderUrl = "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/Win32-latest/dinput8-Win32.zip";
-        const string ClientQuery = "\"Project\" is \"OpenProStreetClient\" and \"Job\" is \"Build Release Tag\" and successful";
+        const string ClientQuery = "\"Project\" is \"OpenProStreet/client\" and \"Job\" is \"Build Release Tag\" and successful";
         const string XtendedInputQuery = "\"Project\" is \"xtendedinput\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
         const string HdReflectionsQuery = "\"Project\" is \"NFSHDReflections\" and \"Job\" is \"Build\" and \"Branch\" is \"main\" and successful";
         const string MultiFixQuery ="\"Project\" is \"xnfsps-multifix\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
@@ -59,7 +59,7 @@ namespace OpenProStreetLauncher
 
         public static Build LatestClient() => LatestBuild(ClientQuery);
 
-        const string LauncherQuery = "\"Project\" is \"OpenProStreetClient/OpenProStreetLauncher\" and \"Job\" is \"Build Release Tag\" and successful";
+        const string LauncherQuery = "\"Project\" is \"OpenProStreet/launcher\" and \"Job\" is \"Build Release Tag\" and successful";
         public static string LauncherArtifact => OperatingSystem.IsWindows() ? "OpenProStreetLauncher.exe" : "OpenProStreetLauncher";
 
         public static Build LatestLauncher() => LatestBuild(LauncherQuery);

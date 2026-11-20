@@ -3,7 +3,7 @@
   <h1>OpenProStreet Launcher</h1>
   <p>Unified cross-platform launcher for Need for Speed: ProStreet with OpenProStreet on Windows, Linux and the Steam Deck.</p>
   <p>
-    <a href="https://code.weexnes.dev/OpenProStreetClient/OpenProStreetLauncher"><img src="https://img.shields.io/badge/download-latest-000000?style=flat-square&labelColor=1f1f1f" alt="Download" /></a>
+    <a href="https://code.weexnes.dev/OpenProStreet/launcher"><img src="https://img.shields.io/badge/download-latest-000000?style=flat-square&labelColor=1f1f1f" alt="Download" /></a>
     <a href="#install"><img src="https://img.shields.io/badge/platform-Windows%20%C2%B7%20Linux%20%C2%B7%20Steam%20Deck-000000?style=flat-square&labelColor=1f1f1f" alt="Platform" /></a>
     <a href="#build-from-source"><img src="https://img.shields.io/badge/stack-.NET%209%20%C2%B7%20Avalonia-000000?style=flat-square&labelColor=1f1f1f" alt="Stack" /></a>
   </p>
@@ -18,7 +18,7 @@ self-contained executables for both operating systems.
 
 - **Automated component management:**
   - Validates `nfs.exe` version 1.1 (unpacked No-CD).
-  - Installs and updates [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader), [XNFSPS MultiFix](https://code.weexnes.dev/OpenProStreetClient/XNFSPS-MultiFix), and the [OpenProStreet Client](https://code.weexnes.dev/OpenProStreetClient).
+  - Installs and updates [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader), [XNFSPS MultiFix](https://code.weexnes.dev/xnfsps-multifix), and the [OpenProStreet Client](https://code.weexnes.dev/OpenProStreet/client).
   - Installs controller support: [NFS-XtendedInput](https://github.com/xan1242/NFS-XtendedInput), from OpenProStreet's fork ([xtendedinput](https://code.weexnes.dev/xtendedinput)), which builds it for ProStreet and fixes its startup crash under Proton. It's updated with the client. It's on by default; the "Controller support" row turns it off and on again. Its settings (`scripts/NFS_XtendedInput.ini`) are never replaced.
   - Installs and removes [NFS HD Reflections](https://code.weexnes.dev/NFSHDReflections) (`NFSPSHDReflections.asi`), keeping `scripts/NFSPSHDReflections.ini` intact when toggled off or updated with the client.
   - Installs and removes TexMod texture packs (`.tpf` or `.zip`) into `scripts/OpenProStreetTextures/` so the client swaps them without TexMod.
@@ -46,7 +46,7 @@ self-contained executables for both operating systems.
 ## Install
 
 Download the release binary for your platform from the newest **Build Release Tag** build on
-[OneDev](https://code.weexnes.dev/OpenProStreetClient/OpenProStreetLauncher). Both builds are self-contained
+[OneDev](https://code.weexnes.dev/OpenProStreet/launcher). Both builds are self-contained
 (no .NET runtime installation required).
 
 ### Windows
