@@ -53,7 +53,7 @@ namespace OpenProStreetLauncher
         Slider m_shortShift, m_sportShift, m_ecoThrottle, m_sportThrottle, m_quickShiftTime;
         StackPanel m_shiftOptions, m_shiftAdaptiveOptions;
         Control m_quickShiftTimeRow;
-        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_uncap, m_overlay, m_notifications, m_verbose, m_colour, m_dumpEvents;
+        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_uncap, m_overlay, m_notifications, m_scoreboard, m_overlayPing, m_verbose, m_colour, m_dumpEvents;
         TextBlock m_settingsNote;
         TextBlock m_installText;
         Button m_installButton2, m_uninstallButton;
@@ -927,7 +927,9 @@ namespace OpenProStreetLauncher
             page.Children.Add(Section("Display", m_borderless, m_vibration, m_uncap, m_console));
             m_overlay = new CheckBox { Content = "Your times and place in races" };
             m_notifications = new CheckBox { Content = "Race notifications" };
-            page.Children.Add(Section("Overlay", m_overlay, m_notifications));
+            m_scoreboard = new CheckBox { Content = "Live scoreboard when holding Tab" };
+            m_overlayPing = new CheckBox { Content = "Server and player ping (ms)" };
+            page.Children.Add(Section("Overlay", m_overlay, m_notifications, m_scoreboard, m_overlayPing));
             page.Children.Add(Section("Advanced", m_verbose, m_colour, m_dumpEvents));
             if (OperatingSystem.IsWindows())
             {
@@ -1160,6 +1162,8 @@ namespace OpenProStreetLauncher
             m_dumpEvents.IsChecked = s.DumpEvents;
             m_overlay.IsChecked = s.Overlay;
             m_notifications.IsChecked = s.OverlayNotifications;
+            m_scoreboard.IsChecked = s.OverlayScoreboard;
+            m_overlayPing.IsChecked = s.OverlayPing;
             m_reshifted.IsChecked = s.ReShifted;
             m_shiftAdaptive.IsChecked = s.ShiftStyle != 1;
             m_shiftClassic.IsChecked = s.ShiftStyle == 1;
@@ -1206,6 +1210,8 @@ namespace OpenProStreetLauncher
             s.DumpEvents = m_dumpEvents.IsChecked == true;
             s.Overlay = m_overlay.IsChecked == true;
             s.OverlayNotifications = m_notifications.IsChecked == true;
+            s.OverlayScoreboard = m_scoreboard.IsChecked == true;
+            s.OverlayPing = m_overlayPing.IsChecked == true;
             s.ReShifted = m_reshifted.IsChecked == true;
             s.ShiftStyle = m_shiftClassic.IsChecked == true ? 1 : 2;
             s.SportMemory = m_shiftMemory.IsChecked == true;

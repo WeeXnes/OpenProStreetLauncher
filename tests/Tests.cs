@@ -98,24 +98,28 @@ static class Tests
         Check(ClientSettings.Load(lan).Address == "", "an empty Address means search the LAN");
 
         Console.WriteLine("Overlay");
-        Check(fresh.Overlay && fresh.OverlayNotifications, "the overlay and its notifications are on by default");
+        Check(fresh.Overlay && fresh.OverlayNotifications && fresh.OverlayScoreboard && fresh.OverlayPing, "the overlay, notifications, scoreboard and ping are on by default");
         string overlay = Path.Combine(root, "overlay.ini");
-        File.WriteAllText(overlay, "[overlay]\r\nenabled = 0\r\nNotifications=1\r\nPosition=TopLeft\r\nScale=1.5\r\n");
+        File.WriteAllText(overlay, "[overlay]\r\nenabled = 0\r\nNotifications=1\r\nScoreboard=0\r\nPing=0\r\nPosition=TopLeft\r\nScale=1.5\r\n");
         ClientSettings o = ClientSettings.Load(overlay);
-        Check(!o.Overlay && o.OverlayNotifications, "[Overlay] Enabled and Notifications are read");
+        Check(!o.Overlay && o.OverlayNotifications && !o.OverlayScoreboard && !o.OverlayPing, "[Overlay] Enabled, Notifications, Scoreboard and Ping are read");
         o.Overlay = true;
         o.OverlayNotifications = false;
+        o.OverlayScoreboard = true;
+        o.OverlayPing = false;
         o.Save(overlay);
         string overlayText = File.ReadAllText(overlay);
-        Check(overlayText.Contains("Notifications=0") && !overlayText.Contains("enabled = 0") && ClientSettings.Load(overlay).Overlay,
+        Check(overlayText.Contains("Notifications=0") && overlayText.Contains("Scoreboard=1") && overlayText.Contains("Ping=0") &&
+              !overlayText.Contains("enabled = 0") && ClientSettings.Load(overlay).Overlay,
               "they're saved under [Overlay]: " + overlayText.Replace("\r\n", "|"));
         Check(overlayText.Contains("Position=TopLeft") && overlayText.Contains("Scale=1.5"), "the client's Position and Scale are kept");
         ClientSettings o2 = ClientSettings.Load(overlay);
-        Check(o2.Overlay && !o2.OverlayNotifications, "what was saved reads back");
+        Check(o2.Overlay && !o2.OverlayNotifications && o2.OverlayScoreboard && !o2.OverlayPing, "what was saved reads back");
         string newOverlay = Path.Combine(root, "overlay-new.ini");
         new ClientSettings().Save(newOverlay);
         string newText = File.ReadAllText(newOverlay);
-        Check(newText.Contains("[Overlay]") && newText.Contains("Enabled=1") && newText.Contains("Notifications=1"), "a new file lists the overlay keys with their defaults");
+        Check(newText.Contains("[Overlay]") && newText.Contains("Enabled=1") && newText.Contains("Notifications=1") &&
+              newText.Contains("Scoreboard=1") && newText.Contains("Ping=1"), "a new file lists the overlay keys with their defaults");
 
         Console.WriteLine("Gearbox");
         Check(!fresh.ReShifted && fresh.ShiftStyle == 2 && fresh.SportMemory && fresh.CoastDownshift && fresh.QuickShift && fresh.SkipGears && fresh.ShiftIndicator &&

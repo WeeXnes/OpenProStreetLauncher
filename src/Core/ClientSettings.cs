@@ -116,6 +116,8 @@ namespace OpenProStreetLauncher
         public bool DumpEvents = false;
         public bool Overlay = true;              // the standing card and race notifications
         public bool OverlayNotifications = true;
+        public bool OverlayScoreboard = true;    // centered live scoreboard when holding Tab
+        public bool OverlayPing = true;          // server and player latency (ms) in the overlay
 
         // ReShifted, the client's automatic gearbox that follows how you drive. ReShifted is the
         // master switch; the rest only matters while it is on.
@@ -192,6 +194,8 @@ namespace OpenProStreetLauncher
             s.DumpEvents = ini.GetBool("Debug", "DumpEvents", s.DumpEvents);
             s.Overlay = ini.GetBool("Overlay", "Enabled", s.Overlay);
             s.OverlayNotifications = ini.GetBool("Overlay", "Notifications", s.OverlayNotifications);
+            s.OverlayScoreboard = ini.GetBool("Overlay", "Scoreboard", s.OverlayScoreboard);
+            s.OverlayPing = ini.GetBool("Overlay", "Ping", s.OverlayPing);
             s.ReShifted = ini.GetBool("Transmission", "ReShifted", s.ReShifted);
             s.ShiftStyle = GetInt(ini, "ReShifted", "Style", s.ShiftStyle, 1, 2);
             s.SportMemory = ini.GetBool("ReShifted", "SportMemory", s.SportMemory);
@@ -226,6 +230,8 @@ namespace OpenProStreetLauncher
             ini.SetBool("Debug", "DumpEvents", DumpEvents);
             ini.SetBool("Overlay", "Enabled", Overlay);
             ini.SetBool("Overlay", "Notifications", OverlayNotifications);
+            ini.SetBool("Overlay", "Scoreboard", OverlayScoreboard);
+            ini.SetBool("Overlay", "Ping", OverlayPing);
             ini.SetBool("Transmission", "ReShifted", ReShifted);
             ini.Set("ReShifted", "Style", ShiftStyle.ToString());
             ini.SetBool("ReShifted", "SportMemory", SportMemory);
