@@ -701,5 +701,29 @@ static class Tests
         string bundledIni = iniReader.ReadToEnd();
         Check(!bundledIni.Contains("super-secret") && bundledIni.Contains("Password=<redacted>") && bundledIni.Contains("Username=Alice"),
               "bundled OpenProStreetClient.ini redacts the password while keeping other settings");
+
+        Console.WriteLine("Feature branch updates");
+        Check(Downloads.IsDefaultBranch(null) && Downloads.IsDefaultBranch("master") && Downloads.IsDefaultBranch("MAIN") && !Downloads.IsDefaultBranch("discord-invite"),
+              "default branch detection treats empty/master/main as stable");
+        Check(Downloads.BuildClientQuery("master").Contains("\"Job\" is \"Build Release Tag\""),
+              "stable branch queries Build Release Tag");
+        string featQuery = Downloads.BuildClientQuery("discord-invite");
+        Check(featQuery.Contains("\"Job\" is \"Build Feature Branch\"") && featQuery.Contains("\"Branch\" is \"discord-invite\""),
+              "feature branch queries Build Feature Branch for that branch");
+        string[] parsedBranches = Downloads.ParseFeatureBranches("[{\"refName\":\"refs/heads/discord-invite\"},{\"refName\":\"refs/heads/discord-invite\"},{\"refName\":\"refs/heads/exp-test\"}]");
+        Check(parsedBranches.Length == 3 && parsedBranches[0] == "master" && parsedBranches[1] == "discord-invite" && parsedBranches[2] == "exp-test",
+              "ParseFeatureBranches lists master first plus unique branch names");
+
+        string pePath = Path.Combine(root, "feature-client.asi");
+        using (MemoryStream ms = new MemoryStream())
+        {
+            ms.Write(Encoding.ASCII.GetBytes("MZdummy"));
+            ms.Write(Encoding.Unicode.GetBytes("ProductVersion\0"));
+            ms.Write(new byte[] { 0, 0 });
+            ms.Write(Encoding.Unicode.GetBytes("10.22-fb-discord-invite\0"));
+            File.WriteAllBytes(pePath, ms.ToArray());
+        }
+        Check(Game.ProductVersionOf(pePath) == "10.22-fb-discord-invite",
+              "ProductVersionOf reads UTF-16LE feature build strings cross-platform");
     }
 }

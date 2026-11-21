@@ -23,6 +23,7 @@ namespace OpenProStreetLauncher
         const string OneDev = "https://code.weexnes.dev";
         const string LoaderUrl = "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/Win32-latest/dinput8-Win32.zip";
         const string ClientQuery = "\"Project\" is \"OpenProStreet/client\" and \"Job\" is \"Build Release Tag\" and successful";
+        const string ClientFeatureQuery = "\"Project\" is \"OpenProStreet/client\" and \"Job\" is \"Build Feature Branch\" and successful";
         const string XtendedInputQuery = "\"Project\" is \"xtendedinput\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
         const string HdReflectionsQuery = "\"Project\" is \"NFSHDReflections\" and \"Job\" is \"Build\" and \"Branch\" is \"main\" and successful";
         const string MultiFixQuery ="\"Project\" is \"xnfsps-multifix\" and \"Job\" is \"Build\" and \"Branch\" is \"master\" and successful";
@@ -57,7 +58,49 @@ namespace OpenProStreetLauncher
             };
         }
 
-        public static Build LatestClient() => LatestBuild(ClientQuery);
+        public static bool IsDefaultBranch(string branch)
+        {
+            string b = (branch ?? "").Trim();
+            return b.Length == 0 || string.Equals(b, "master", StringComparison.OrdinalIgnoreCase) || string.Equals(b, "main", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string BuildClientQuery(string branch)
+        {
+            if (IsDefaultBranch(branch)) return ClientQuery;
+            string escaped = branch.Trim().Replace("\"", "");
+            return "\"Project\" is \"OpenProStreet/client\" and \"Job\" is \"Build Feature Branch\" and \"Branch\" is \"" + escaped + "\" and successful";
+        }
+
+        public static Build LatestClient(string branch = null) => LatestBuild(BuildClientQuery(branch));
+
+        internal static string[] ParseFeatureBranches(string json)
+        {
+            System.Collections.Generic.List<string> branches = new System.Collections.Generic.List<string> { "master" };
+            using JsonDocument doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return branches.ToArray();
+            foreach (JsonElement item in doc.RootElement.EnumerateArray())
+            {
+                if (!item.TryGetProperty("refName", out JsonElement refEl) || refEl.ValueKind != JsonValueKind.String) continue;
+                string refName = refEl.GetString() ?? "";
+                const string prefix = "refs/heads/";
+                if (!refName.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                string branch = refName.Substring(prefix.Length).Trim();
+                if (branch.Length > 0 && !branches.Contains(branch, StringComparer.OrdinalIgnoreCase)) branches.Add(branch);
+            }
+            return branches.ToArray();
+        }
+
+        public static string[] ClientBranches()
+        {
+            string url = OneDev + "/~api/builds?query=" + Uri.EscapeDataString(ClientFeatureQuery) + "&offset=0&count=25";
+            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Accept.ParseAdd("application/json");
+            using HttpResponseMessage response = Http.Send(request);
+            response.EnsureSuccessStatusCode();
+            using Stream body = response.Content.ReadAsStream();
+            using StreamReader reader = new StreamReader(body);
+            return ParseFeatureBranches(reader.ReadToEnd());
+        }
 
         const string LauncherQuery = "\"Project\" is \"OpenProStreet/launcher\" and \"Job\" is \"Build Release Tag\" and successful";
         public static string LauncherArtifact => OperatingSystem.IsWindows() ? "OpenProStreetLauncher.exe" : "OpenProStreetLauncher";

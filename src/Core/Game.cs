@@ -164,6 +164,27 @@ namespace OpenProStreetLauncher
             return null;
         }
 
+        public static string ProductVersionOf(string path)
+        {
+            try
+            {
+                if (path == null || !File.Exists(path)) return null;
+                byte[] b = File.ReadAllBytes(path);
+                byte[] needle = System.Text.Encoding.Unicode.GetBytes("ProductVersion\0");
+                int hit = b.AsSpan().IndexOf(needle);
+                if (hit < 0) return null;
+                int pos = hit + needle.Length;
+                // Align past at most 4 bytes of 0x00 padding to the UTF-16LE value string.
+                for (int pad = 0; pad < 4 && pos + 1 < b.Length && b[pos] == 0 && b[pos + 1] == 0; pad += 2) pos += 2;
+                int start = pos;
+                while (pos + 1 < b.Length && !(b[pos] == 0 && b[pos + 1] == 0) && pos - start < 256) pos += 2;
+                if (pos <= start) return null;
+                string value = System.Text.Encoding.Unicode.GetString(b, start, pos - start).Trim();
+                return value.Length > 0 ? value : null;
+            }
+            catch (Exception) { return null; }
+        }
+
         public static string Show(Version v)
         {
             if (v == null) return "?";
@@ -220,6 +241,17 @@ namespace OpenProStreetLauncher
         {
             get => new IniFile(FilePath).GetBool("Launcher", "FramerateUncapFixed", false);
             set => Save("FramerateUncapFixed", value ? "1" : "0");
+        }
+
+        // Update channel for OpenProStreetClient ("master" = stable release tags, else a feature branch).
+        public static string ClientBranch
+        {
+            get
+            {
+                string raw = (new IniFile(FilePath).Get("Launcher", "ClientBranch") ?? "").Trim();
+                return raw.Length == 0 || string.Equals(raw, "main", StringComparison.OrdinalIgnoreCase) ? "master" : raw;
+            }
+            set => Save("ClientBranch", string.IsNullOrWhiteSpace(value) ? "master" : value.Trim());
         }
 
         static void Save(string key, string value)

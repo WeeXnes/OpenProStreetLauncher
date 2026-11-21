@@ -65,6 +65,9 @@ namespace OpenProStreetLauncher
         Slider m_orbitDeadzone, m_orbitSnapTime, m_orbitBackTime;
         StackPanel m_cameraOptions;
         CheckBox m_verbose, m_colour, m_dumpEvents;
+        ComboBox m_clientBranch;
+        TextBox m_clientBranchCustom;
+        TextBlock m_clientBranchNote;
         TextBlock m_settingsNote, m_diagnosticsNote;
         TextBlock m_installText;
         Button m_installButton2, m_uninstallButton;
@@ -295,14 +298,33 @@ namespace OpenProStreetLauncher
             else m_rowMultiFix.Set(Ui.Danger, mfAsi ? "Its ini file is missing" : "Missing. The client needs it.", "Install",
                 () => Run("Installing XNFSPS MultiFix...", () => Downloads.InstallMultiFix(Scripts)));
 
-            Version installed = Game.FileVersionOf(Game.FindFile(Scripts, Game.ClientAsi));
+            string branch = LauncherSettings.ClientBranch;
+            bool featureBranch = !Downloads.IsDefaultBranch(branch);
+            string clientAsi = Game.FindFile(Scripts, Game.ClientAsi);
+            Version installed = Game.FileVersionOf(clientAsi);
+            string installedProduct = Game.ProductVersionOf(clientAsi);
+            string shownInstalled = !string.IsNullOrEmpty(installedProduct) && installedProduct.Contains("-fb-", StringComparison.OrdinalIgnoreCase)
+                ? installedProduct
+                : Game.Show(installed);
             Version latest = m_latest != null ? Downloads.ParseVersion(m_latest.Version) : null;
             bool sdk = Game.FindFile(Scripts, Game.DiscordSdk) != null;
-            if (installed == null) m_rowClient.Set(Ui.Danger, "Not installed", "Install", () => InstallClient(false));
-            else if (latest != null && latest > installed) m_rowClient.Set(Ui.Warning, "Version " + Game.Show(installed) + ". Version " + Game.Show(latest) + " is out.", "Update", () => InstallClient(true));
-            else if (!sdk) m_rowClient.Set(Ui.Warning, "Version " + Game.Show(installed) + ", but discord_game_sdk.dll is missing", "Install", () => InstallClient(false));
-            else if (latest != null) m_rowClient.Set(Ui.Success, "Version " + Game.Show(installed) + ", the newest");
-            else m_rowClient.Set(Ui.Success, "Version " + Game.Show(installed) + (m_latestFailed ? ". Couldn't check for updates." : ". Checking for updates..."));
+            bool hasFbInstalled = !string.IsNullOrEmpty(installedProduct) && installedProduct.Contains("-fb-", StringComparison.OrdinalIgnoreCase);
+
+            if (installed == null)
+                m_rowClient.Set(Ui.Danger, "Not installed", "Install", () => InstallClient(false));
+            else if (featureBranch && m_latest != null && !string.Equals(installedProduct, m_latest.Version, StringComparison.OrdinalIgnoreCase))
+                m_rowClient.Set(Ui.Warning, "Installed: " + shownInstalled + ". Branch '" + branch + "' (" + (m_latest.Version ?? "latest") + ") is ready.", "Switch", () => InstallClient(true));
+            else if (!featureBranch && m_latest != null && (hasFbInstalled || (latest != null && latest > installed)))
+                m_rowClient.Set(Ui.Warning, hasFbInstalled
+                    ? ("Feature build " + shownInstalled + " installed. Stable " + Game.Show(latest) + " is available.")
+                    : ("Version " + shownInstalled + ". Version " + Game.Show(latest) + " is out."),
+                    hasFbInstalled ? "Switch" : "Update", () => InstallClient(true));
+            else if (!sdk)
+                m_rowClient.Set(Ui.Warning, "Version " + shownInstalled + ", but discord_game_sdk.dll is missing", "Install", () => InstallClient(false));
+            else if (m_latest != null)
+                m_rowClient.Set(Ui.Success, "Version " + shownInstalled + (featureBranch ? " (" + branch + ")" : "") + ", the newest");
+            else
+                m_rowClient.Set(Ui.Success, "Version " + shownInstalled + (featureBranch ? " (" + branch + ")" : "") + (m_latestFailed ? ". Couldn't check for updates." : ". Checking for updates..."));
 
             // NFS-XtendedInput: on while its plugin is in scripts. Updated with the client.
             if (Game.FindFile(Scripts, Game.XtendedInputAsi) != null)
@@ -377,15 +399,21 @@ namespace OpenProStreetLauncher
 
         async Task CheckForUpdate()
         {
-            try { m_latest = await Task.Run(Downloads.LatestClient); }
-            catch (Exception) { m_latestFailed = true; }
+            string branch = LauncherSettings.ClientBranch;
+            m_latestFailed = false;
+            try { m_latest = await Task.Run(() => Downloads.LatestClient(branch)); }
+            catch (Exception) { m_latest = null; m_latestFailed = true; }
             RefreshHome();
             if (!Game.IsGameDir(m_gameDir)) return;
-            Version installed = Game.FileVersionOf(Game.FindFile(Scripts, Game.ClientAsi));
+            string clientAsi = Game.FindFile(Scripts, Game.ClientAsi);
+            Version installed = Game.FileVersionOf(clientAsi);
+            string installedProduct = Game.ProductVersionOf(clientAsi);
             Version latest = m_latest != null ? Downloads.ParseVersion(m_latest.Version) : null;
-            if (installed == null || latest == null || latest <= installed || m_updateOffered) return;
+            if (installed == null || latest == null || Downloads.IsDefaultBranch(branch) && latest <= installed || m_updateOffered) return;
+            if (!Downloads.IsDefaultBranch(branch) && string.Equals(installedProduct, m_latest.Version, StringComparison.OrdinalIgnoreCase)) return;
             m_updateOffered = true;
-            if (await Dialog.Ask(this, "Update available", "OpenProStreet client " + Game.Show(latest) + " is out. You have " + Game.Show(installed) + ". Update now?", "Update", "Not now"))
+            string latestText = !string.IsNullOrEmpty(m_latest.Version) ? m_latest.Version : Game.Show(latest);
+            if (await Dialog.Ask(this, "Update available", "OpenProStreet client " + latestText + " (" + branch + ") is out. You have " + (installedProduct ?? Game.Show(installed)) + ". Update now?", "Update", "Not now"))
                 await InstallClient(true);
         }
 
@@ -416,7 +444,7 @@ namespace OpenProStreetLauncher
 
         Task InstallClient(bool replace) => Run(replace ? "Updating the client..." : "Installing the client...", () =>
         {
-            Build build = m_latest ?? Downloads.LatestClient();
+            Build build = m_latest ?? Downloads.LatestClient(LauncherSettings.ClientBranch);
             m_latest = build;
             Downloads.InstallClient(Scripts, build, replace);
             // Controller support and HD reflections that are on update with the client.
@@ -940,6 +968,7 @@ namespace OpenProStreetLauncher
             page.Children.Add(BuildAtmosphereSection());
             page.Children.Add(BuildCameraSection());
             page.Children.Add(Section("Advanced", m_verbose, m_colour, m_dumpEvents));
+            page.Children.Add(BuildUpdateBranchSection());
             page.Children.Add(BuildDiagnosticsSection());
             if (OperatingSystem.IsWindows())
             {
@@ -1213,6 +1242,81 @@ namespace OpenProStreetLauncher
             return Section("Camera orbit", m_rightStickOrbit, m_cameraOptions);
         }
 
+        Control BuildUpdateBranchSection()
+        {
+            TextBlock desc = Ui.Text("Choose which branch OpenProStreetClient updates come from. Leave on \"master\" for stable releases, or pick an experimental feature branch.", "small");
+            desc.TextWrapping = TextWrapping.Wrap;
+            m_clientBranch = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            m_clientBranchCustom = new TextBox { Watermark = "Or type a branch name (optional)" };
+            m_clientBranchNote = Ui.Text("", "small");
+            m_clientBranchNote.VerticalAlignment = VerticalAlignment.Center;
+
+            Button refreshBtn = Ui.Button("Refresh", false, async () => await RefreshClientBranches());
+            Button switchBtn = Ui.Button("Apply branch", false, async () => await ApplySelectedBranch());
+            Grid row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), Margin = new Thickness(0, 4, 0, 4) };
+            row.Children.Add(m_clientBranch);
+            refreshBtn.Margin = new Thickness(8, 0, 0, 0);
+            switchBtn.Margin = new Thickness(8, 0, 0, 0);
+            Grid.SetColumn(refreshBtn, 1);
+            Grid.SetColumn(switchBtn, 2);
+            row.Children.Add(refreshBtn);
+            row.Children.Add(switchBtn);
+            return Section("Client update branch", desc, row, m_clientBranchCustom, m_clientBranchNote);
+        }
+
+        string ResolveSelectedBranch()
+        {
+            string custom = (m_clientBranchCustom?.Text ?? "").Trim();
+            if (custom.Length > 0) return custom;
+            string picked = SelectedComboValue(m_clientBranch, "master");
+            return string.IsNullOrWhiteSpace(picked) ? "master" : picked;
+        }
+
+        async Task RefreshClientBranches()
+        {
+            string current = LauncherSettings.ClientBranch;
+            m_clientBranchNote.Foreground = Ui.Idle;
+            m_clientBranchNote.Text = "Loading branches from OneDev...";
+            try
+            {
+                string[] list = await Task.Run(Downloads.ClientBranches);
+                SelectComboValue(m_clientBranch, current, list);
+                m_clientBranchNote.Foreground = Ui.Success;
+                m_clientBranchNote.Text = $"Found {list.Length} branch(es). Active: {current}";
+            }
+            catch (Exception)
+            {
+                SelectComboValue(m_clientBranch, current, new[] { "master" });
+                m_clientBranchNote.Foreground = Ui.Warning;
+                m_clientBranchNote.Text = "Couldn't load branches from OneDev. Active: " + current;
+            }
+        }
+
+        async Task ApplySelectedBranch()
+        {
+            string chosen = ResolveSelectedBranch();
+            LauncherSettings.ClientBranch = chosen;
+            m_clientBranchCustom.Text = "";
+            SelectComboValue(m_clientBranch, chosen, (m_clientBranch.ItemsSource as IEnumerable<string>)?.ToArray() ?? new[] { "master" });
+            m_latest = null;
+            m_latestFailed = false;
+            m_updateOffered = false;
+            m_clientBranchNote.Foreground = Ui.Idle;
+            m_clientBranchNote.Text = "Checking builds on '" + chosen + "'...";
+            RefreshHome();
+            await CheckForUpdate();
+            if (m_latest != null)
+            {
+                m_clientBranchNote.Foreground = Ui.Success;
+                m_clientBranchNote.Text = "Selected '" + chosen + "' (latest: " + (m_latest.Version ?? "#" + m_latest.Number) + "). Go to Home to Switch/Update.";
+            }
+            else
+            {
+                m_clientBranchNote.Foreground = Ui.Warning;
+                m_clientBranchNote.Text = "No successful build found yet on '" + chosen + "'.";
+            }
+        }
+
         Control BuildDiagnosticsSection()
         {
             TextBlock desc = Ui.Text("Bundles configs, logs and race telemetry into a .zip file for troubleshooting. Account passwords and identity.key are never included.", "small");
@@ -1272,6 +1376,12 @@ namespace OpenProStreetLauncher
 
         void LoadSettings()
         {
+            string branch = LauncherSettings.ClientBranch;
+            SelectComboValue(m_clientBranch, branch, new[] { "master" });
+            m_clientBranchCustom.Text = "";
+            m_clientBranchNote.Foreground = Ui.Idle;
+            m_clientBranchNote.Text = "Active branch: " + branch;
+            _ = RefreshClientBranches();
             bool have = Game.IsGameDir(m_gameDir);
             m_settingsPage.IsEnabled = have;
             ShowInstallState();
@@ -1417,6 +1527,16 @@ namespace OpenProStreetLauncher
             try
             {
                 s.Save(ClientSettings.PathIn(m_gameDir));
+                string chosenBranch = ResolveSelectedBranch();
+                bool branchChanged = !string.Equals(chosenBranch, LauncherSettings.ClientBranch, StringComparison.OrdinalIgnoreCase);
+                LauncherSettings.ClientBranch = chosenBranch;
+                if (branchChanged)
+                {
+                    m_latest = null;
+                    m_latestFailed = false;
+                    m_updateOffered = false;
+                    _ = CheckForUpdate();
+                }
                 if (ConsoleWindow.Shown(m_gameDir) is bool shown && shown != (m_console.IsChecked == true))
                     ConsoleWindow.Set(m_gameDir, m_console.IsChecked == true);
                 if (Framerate.Uncapped(m_gameDir) is bool uncapped && uncapped != (m_uncap.IsChecked == true))

@@ -86,7 +86,7 @@ namespace OpenProStreetLauncher
             m_step("Installing XNFSPS MultiFix");
             Downloads.InstallMultiFix(scripts);
             m_step("Installing the OpenProStreet client");
-            Downloads.InstallClient(scripts, Downloads.LatestClient(), false);
+            Downloads.InstallClient(scripts, Downloads.LatestClient(LauncherSettings.ClientBranch), false);
             // Controller support, on by default, on Windows and under Proton.
             m_step("Installing controller support");
             Downloads.InstallXtendedInput(gameDir, false);
