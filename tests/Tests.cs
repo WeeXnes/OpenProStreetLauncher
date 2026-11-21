@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using DiscUtils.Iso9660;
@@ -31,6 +32,7 @@ static class Tests
             DiscTests(root);
             GameTests(root);
             SelfInstallTests(root);
+            DiagnosticsTests(root);
         }
         catch (Exception e)
         {
@@ -98,28 +100,67 @@ static class Tests
         Check(ClientSettings.Load(lan).Address == "", "an empty Address means search the LAN");
 
         Console.WriteLine("Overlay");
-        Check(fresh.Overlay && fresh.OverlayNotifications && fresh.OverlayScoreboard && fresh.OverlayPing, "the overlay, notifications, scoreboard and ping are on by default");
+        Check(fresh.Overlay && fresh.OverlayNotifications && fresh.OverlayScoreboard && fresh.OverlayPing &&
+              fresh.OverlayChat && fresh.OverlayLobbyCars && fresh.OverlayPaceBar &&
+              fresh.OverlayPosition == "TopRight" && fresh.OverlayScale == 100 &&
+              fresh.OverlayToggleKey == "F3" && fresh.OverlayScoreboardKey == "Tab" && fresh.OverlaySettingsKey == "F4",
+              "the overlay, notifications, scoreboard, ping, chat, lobby cars, pace bar and hotkeys have the right defaults");
         string overlay = Path.Combine(root, "overlay.ini");
-        File.WriteAllText(overlay, "[overlay]\r\nenabled = 0\r\nNotifications=1\r\nScoreboard=0\r\nPing=0\r\nPosition=TopLeft\r\nScale=1.5\r\n");
+        File.WriteAllText(overlay, "[overlay]\r\nenabled = 0\r\nNotifications=1\r\nScoreboard=0\r\nPing=0\r\nChat=0\r\nLobbyCars=0\r\nPaceBar=0\r\nPosition=TopLeft\r\nScale=150\r\nToggleKey=F5\r\nScoreboardKey=Insert\r\nSettingsKey=F6\r\nTest=1\r\n");
         ClientSettings o = ClientSettings.Load(overlay);
-        Check(!o.Overlay && o.OverlayNotifications && !o.OverlayScoreboard && !o.OverlayPing, "[Overlay] Enabled, Notifications, Scoreboard and Ping are read");
+        Check(!o.Overlay && o.OverlayNotifications && !o.OverlayScoreboard && !o.OverlayPing &&
+              !o.OverlayChat && !o.OverlayLobbyCars && !o.OverlayPaceBar &&
+              o.OverlayPosition == "TopLeft" && o.OverlayScale == 150 &&
+              o.OverlayToggleKey == "F5" && o.OverlayScoreboardKey == "Insert" && o.OverlaySettingsKey == "F6",
+              "[Overlay] expanded keys are read");
         o.Overlay = true;
         o.OverlayNotifications = false;
         o.OverlayScoreboard = true;
         o.OverlayPing = false;
+        o.OverlayChat = true;
+        o.OverlayPosition = "BottomRight";
+        o.OverlayScale = 125;
         o.Save(overlay);
         string overlayText = File.ReadAllText(overlay);
         Check(overlayText.Contains("Notifications=0") && overlayText.Contains("Scoreboard=1") && overlayText.Contains("Ping=0") &&
+              overlayText.Contains("Chat=1") && overlayText.Contains("Position=BottomRight") && overlayText.Contains("Scale=125") &&
+              overlayText.Contains("ToggleKey=F5") && overlayText.Contains("ScoreboardKey=Insert") && overlayText.Contains("SettingsKey=F6") &&
               !overlayText.Contains("enabled = 0") && ClientSettings.Load(overlay).Overlay,
               "they're saved under [Overlay]: " + overlayText.Replace("\r\n", "|"));
-        Check(overlayText.Contains("Position=TopLeft") && overlayText.Contains("Scale=1.5"), "the client's Position and Scale are kept");
+        Check(overlayText.Contains("Test=1"), "the client's other overlay keys are kept");
         ClientSettings o2 = ClientSettings.Load(overlay);
-        Check(o2.Overlay && !o2.OverlayNotifications && o2.OverlayScoreboard && !o2.OverlayPing, "what was saved reads back");
+        Check(o2.Overlay && !o2.OverlayNotifications && o2.OverlayScoreboard && !o2.OverlayPing &&
+              o2.OverlayChat && !o2.OverlayLobbyCars && !o2.OverlayPaceBar &&
+              o2.OverlayPosition == "BottomRight" && o2.OverlayScale == 125 &&
+              o2.OverlayToggleKey == "F5" && o2.OverlayScoreboardKey == "Insert" && o2.OverlaySettingsKey == "F6",
+              "what was saved reads back");
         string newOverlay = Path.Combine(root, "overlay-new.ini");
         new ClientSettings().Save(newOverlay);
         string newText = File.ReadAllText(newOverlay);
         Check(newText.Contains("[Overlay]") && newText.Contains("Enabled=1") && newText.Contains("Notifications=1") &&
-              newText.Contains("Scoreboard=1") && newText.Contains("Ping=1"), "a new file lists the overlay keys with their defaults");
+              newText.Contains("Scoreboard=1") && newText.Contains("Ping=1") && newText.Contains("Chat=1") &&
+              newText.Contains("SettingsKey=F4") && newText.Contains("[Atmosphere]") && newText.Contains("[Camera]"),
+              "a new file lists the overlay, atmosphere and camera keys with their defaults");
+
+        Console.WriteLine("Atmosphere & Camera orbit");
+        Check(fresh.AtmosphereEnabled && fresh.AtmosphereStart == "Day" &&
+              !fresh.RightStickOrbit && fresh.OrbitBlockShift && !fresh.OrbitInvertX &&
+              fresh.OrbitDeadzone == 30 && fresh.OrbitSnapTime == 50 && fresh.OrbitBackTime == 250,
+              "atmosphere and camera orbit defaults match the client");
+        string atmCam = Path.Combine(root, "atm_cam.ini");
+        File.WriteAllText(atmCam, "[Atmosphere]\r\nEnabled=0\r\nStart=night\r\nKey=F8\r\n[Camera]\r\nRightStickOrbit=1\r\nOrbitBlockShift=0\r\nOrbitInvertX=1\r\nOrbitDeadzone=999\r\nOrbitSnapTime=120\r\nOrbitBackTime=450\r\n");
+        ClientSettings ac = ClientSettings.Load(atmCam);
+        Check(!ac.AtmosphereEnabled && ac.AtmosphereStart == "Night" &&
+              ac.RightStickOrbit && !ac.OrbitBlockShift && ac.OrbitInvertX &&
+              ac.OrbitDeadzone == 90 && ac.OrbitSnapTime == 120 && ac.OrbitBackTime == 450,
+              "[Atmosphere] and [Camera] settings read and clamp cleanly");
+        ac.AtmosphereEnabled = true;
+        ac.AtmosphereStart = "Dusk";
+        ac.OrbitDeadzone = 20;
+        ac.Save(atmCam);
+        string atmCamText = File.ReadAllText(atmCam);
+        Check(atmCamText.Contains("Key=F8") && atmCamText.Contains("Start=Dusk") && atmCamText.Contains("OrbitDeadzone=20"),
+              "saving preserves unrelated Atmosphere keys and writes updated values");
 
         Console.WriteLine("Gearbox");
         Check(!fresh.ReShifted && fresh.ShiftStyle == 2 && fresh.SportMemory && fresh.CoastDownshift && fresh.QuickShift && fresh.SkipGears && fresh.ShiftIndicator &&
@@ -617,5 +658,48 @@ static class Tests
             && File.Exists(Path.Combine(scripts, Game.HdReflectionsIni))
             && File.Exists(Path.Combine(scripts, "NFSPSHDReflections.LICENSE.txt")),
             "removing HD reflections deletes the asi while keeping user ini and license");
+    }
+
+    static void DiagnosticsTests(string root)
+    {
+        Console.WriteLine("Diagnostics bundle");
+        string redacted = Diagnostics.RedactClientIni("[Server]\r\nAddress=weexnes.dev\r\n[Account]\r\nAutoLogin=1\r\nUsername=Alice\r\nPassword = dpapi:secretBlob\r\n[Overlay]\r\nPassword=keep_me\r\n");
+        Check(redacted.Contains("Username=Alice") && redacted.Contains("Password =<redacted>") && !redacted.Contains("secretBlob") &&
+              redacted.Contains("[Overlay]\r\nPassword=keep_me"),
+              "RedactClientIni masks [Account] Password without disturbing other sections");
+
+        string game = Path.Combine(root, "diag_game");
+        string scripts = Path.Combine(game, "scripts");
+        string appData = Path.Combine(root, "diag_appdata");
+        Directory.CreateDirectory(scripts);
+        Directory.CreateDirectory(appData);
+        File.WriteAllBytes(Path.Combine(game, Game.ExeName), new byte[] { 0x4D, 0x5A });
+        File.WriteAllText(Path.Combine(scripts, Game.ClientIni), "[Account]\nUsername=Alice\nPassword=super-secret\n[Overlay]\nChat=1\n");
+        File.WriteAllText(Path.Combine(scripts, Game.MultiFixIni), "[MultiFix]\nFramerateUncap=1\n");
+        File.WriteAllText(Path.Combine(game, "d3d9.log"), "dxvk ok\n");
+        File.WriteAllText(Path.Combine(scripts, "OpenProStreetClient.log"), "connected\n");
+        File.WriteAllText(Path.Combine(appData, "identity.key"), "PRIVATE_ED25519_KEY");
+        File.WriteAllText(Path.Combine(appData, "other.key"), "SECRET_KEY");
+        File.WriteAllText(Path.Combine(appData, "race_results.jsonl"), "{\"ok\":true}\n");
+        File.WriteAllText(Path.Combine(appData, "client.log"), "appdata log\n");
+
+        string zipPath = Path.Combine(root, "bundle.zip");
+        DiagnosticsResult res = Diagnostics.CreateBundle(game, zipPath, new[] { appData });
+        Check(res.FilesIncluded >= 6 && File.Exists(zipPath), "bundle archive is written");
+
+        using ZipArchive zip = ZipFile.OpenRead(zipPath);
+        string[] names = zip.Entries.Select(e => e.FullName).ToArray();
+        Check(names.Contains("summary.txt") && names.Contains("config/OpenProStreetClient.ini") &&
+              names.Contains("config/XNFSPS-MultiFix.ini") && names.Contains("game/d3d9.log") &&
+              names.Contains("scripts/OpenProStreetClient.log") && names.Contains("appdata/race_results.jsonl") &&
+              names.Contains("appdata/client.log"),
+              "bundle contains summary, configs, logs and race telemetry");
+        Check(!names.Any(n => n.EndsWith(".key", StringComparison.OrdinalIgnoreCase)),
+              "identity.key and any .key files are never included");
+
+        using StreamReader iniReader = new StreamReader(zip.GetEntry("config/OpenProStreetClient.ini").Open());
+        string bundledIni = iniReader.ReadToEnd();
+        Check(!bundledIni.Contains("super-secret") && bundledIni.Contains("Password=<redacted>") && bundledIni.Contains("Username=Alice"),
+              "bundled OpenProStreetClient.ini redacts the password while keeping other settings");
     }
 }

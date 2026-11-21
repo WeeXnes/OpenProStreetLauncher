@@ -118,6 +118,26 @@ namespace OpenProStreetLauncher
         public bool OverlayNotifications = true;
         public bool OverlayScoreboard = true;    // centered live scoreboard when holding Tab
         public bool OverlayPing = true;          // server and player latency (ms) in the overlay
+        public bool OverlayChat = true;          // live in-game player chat messages in the room
+        public bool OverlayLobbyCars = true;     // lobby drivers and their picked cars
+        public bool OverlayPaceBar = true;       // live pace bar during races
+        public string OverlayPosition = "TopRight"; // TopLeft, TopRight, BottomLeft or BottomRight
+        public int OverlayScale = 100;           // percent, 50 to 200
+        public string OverlayToggleKey = "F3";
+        public string OverlayScoreboardKey = "Tab";
+        public string OverlaySettingsKey = "F4";
+
+        // Atmosphere, day/dusk/night shader tints & sky.
+        public bool AtmosphereEnabled = true;
+        public string AtmosphereStart = "Day";   // Day, Dusk or Night
+
+        // Camera orbit with controller right stick.
+        public bool RightStickOrbit = false;
+        public bool OrbitBlockShift = true;
+        public bool OrbitInvertX = false;
+        public int OrbitDeadzone = 30;           // percent, 5 to 90
+        public int OrbitSnapTime = 50;           // ms, 0 to 1000
+        public int OrbitBackTime = 250;          // ms, 0 to 5000
 
         // ReShifted, the client's automatic gearbox that follows how you drive. ReShifted is the
         // master switch; the rest only matters while it is on.
@@ -137,6 +157,32 @@ namespace OpenProStreetLauncher
         static int GetInt(IniFile ini, string section, string key, int def, int min, int max)
         {
             return int.TryParse((ini.Get(section, key) ?? "").Trim(), out int v) ? System.Math.Clamp(v, min, max) : def;
+        }
+
+        public static string NormalizePosition(string value)
+        {
+            string trimmed = (value ?? "").Trim();
+            foreach (string option in new[] { "TopLeft", "TopRight", "BottomLeft", "BottomRight" })
+            {
+                if (string.Equals(trimmed, option, System.StringComparison.OrdinalIgnoreCase)) return option;
+            }
+            return "TopRight";
+        }
+
+        public static string NormalizeAtmosphereStart(string value)
+        {
+            string trimmed = (value ?? "").Trim();
+            foreach (string option in new[] { "Day", "Dusk", "Night" })
+            {
+                if (string.Equals(trimmed, option, System.StringComparison.OrdinalIgnoreCase)) return option;
+            }
+            return "Day";
+        }
+
+        static string GetKey(IniFile ini, string section, string key, string def)
+        {
+            string raw = (ini.Get(section, key) ?? "").Trim();
+            return raw.Length > 0 ? raw : def;
         }
 
         // The client logs in with these as soon as the account screen opens.
@@ -196,6 +242,22 @@ namespace OpenProStreetLauncher
             s.OverlayNotifications = ini.GetBool("Overlay", "Notifications", s.OverlayNotifications);
             s.OverlayScoreboard = ini.GetBool("Overlay", "Scoreboard", s.OverlayScoreboard);
             s.OverlayPing = ini.GetBool("Overlay", "Ping", s.OverlayPing);
+            s.OverlayChat = ini.GetBool("Overlay", "Chat", s.OverlayChat);
+            s.OverlayLobbyCars = ini.GetBool("Overlay", "LobbyCars", s.OverlayLobbyCars);
+            s.OverlayPaceBar = ini.GetBool("Overlay", "PaceBar", s.OverlayPaceBar);
+            s.OverlayPosition = NormalizePosition(ini.Get("Overlay", "Position"));
+            s.OverlayScale = GetInt(ini, "Overlay", "Scale", s.OverlayScale, 50, 200);
+            s.OverlayToggleKey = GetKey(ini, "Overlay", "ToggleKey", s.OverlayToggleKey);
+            s.OverlayScoreboardKey = GetKey(ini, "Overlay", "ScoreboardKey", s.OverlayScoreboardKey);
+            s.OverlaySettingsKey = GetKey(ini, "Overlay", "SettingsKey", s.OverlaySettingsKey);
+            s.AtmosphereEnabled = ini.GetBool("Atmosphere", "Enabled", s.AtmosphereEnabled);
+            s.AtmosphereStart = NormalizeAtmosphereStart(ini.Get("Atmosphere", "Start"));
+            s.RightStickOrbit = ini.GetBool("Camera", "RightStickOrbit", s.RightStickOrbit);
+            s.OrbitBlockShift = ini.GetBool("Camera", "OrbitBlockShift", s.OrbitBlockShift);
+            s.OrbitInvertX = ini.GetBool("Camera", "OrbitInvertX", s.OrbitInvertX);
+            s.OrbitDeadzone = GetInt(ini, "Camera", "OrbitDeadzone", s.OrbitDeadzone, 5, 90);
+            s.OrbitSnapTime = GetInt(ini, "Camera", "OrbitSnapTime", s.OrbitSnapTime, 0, 1000);
+            s.OrbitBackTime = GetInt(ini, "Camera", "OrbitBackTime", s.OrbitBackTime, 0, 5000);
             s.ReShifted = ini.GetBool("Transmission", "ReShifted", s.ReShifted);
             s.ShiftStyle = GetInt(ini, "ReShifted", "Style", s.ShiftStyle, 1, 2);
             s.SportMemory = ini.GetBool("ReShifted", "SportMemory", s.SportMemory);
@@ -232,6 +294,22 @@ namespace OpenProStreetLauncher
             ini.SetBool("Overlay", "Notifications", OverlayNotifications);
             ini.SetBool("Overlay", "Scoreboard", OverlayScoreboard);
             ini.SetBool("Overlay", "Ping", OverlayPing);
+            ini.SetBool("Overlay", "Chat", OverlayChat);
+            ini.SetBool("Overlay", "LobbyCars", OverlayLobbyCars);
+            ini.SetBool("Overlay", "PaceBar", OverlayPaceBar);
+            ini.Set("Overlay", "Position", NormalizePosition(OverlayPosition));
+            ini.Set("Overlay", "Scale", System.Math.Clamp(OverlayScale, 50, 200).ToString());
+            ini.Set("Overlay", "ToggleKey", string.IsNullOrWhiteSpace(OverlayToggleKey) ? "F3" : OverlayToggleKey.Trim());
+            ini.Set("Overlay", "ScoreboardKey", string.IsNullOrWhiteSpace(OverlayScoreboardKey) ? "Tab" : OverlayScoreboardKey.Trim());
+            ini.Set("Overlay", "SettingsKey", string.IsNullOrWhiteSpace(OverlaySettingsKey) ? "F4" : OverlaySettingsKey.Trim());
+            ini.SetBool("Atmosphere", "Enabled", AtmosphereEnabled);
+            ini.Set("Atmosphere", "Start", NormalizeAtmosphereStart(AtmosphereStart));
+            ini.SetBool("Camera", "RightStickOrbit", RightStickOrbit);
+            ini.SetBool("Camera", "OrbitBlockShift", OrbitBlockShift);
+            ini.SetBool("Camera", "OrbitInvertX", OrbitInvertX);
+            ini.Set("Camera", "OrbitDeadzone", System.Math.Clamp(OrbitDeadzone, 5, 90).ToString());
+            ini.Set("Camera", "OrbitSnapTime", System.Math.Clamp(OrbitSnapTime, 0, 1000).ToString());
+            ini.Set("Camera", "OrbitBackTime", System.Math.Clamp(OrbitBackTime, 0, 5000).ToString());
             ini.SetBool("Transmission", "ReShifted", ReShifted);
             ini.Set("ReShifted", "Style", ShiftStyle.ToString());
             ini.SetBool("ReShifted", "SportMemory", SportMemory);

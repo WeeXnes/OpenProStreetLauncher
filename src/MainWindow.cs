@@ -53,8 +53,19 @@ namespace OpenProStreetLauncher
         Slider m_shortShift, m_sportShift, m_ecoThrottle, m_sportThrottle, m_quickShiftTime;
         StackPanel m_shiftOptions, m_shiftAdaptiveOptions;
         Control m_quickShiftTimeRow;
-        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_uncap, m_overlay, m_notifications, m_scoreboard, m_overlayPing, m_verbose, m_colour, m_dumpEvents;
-        TextBlock m_settingsNote;
+        CheckBox m_tank, m_speed, m_borderless, m_vibration, m_console, m_uncap;
+        CheckBox m_overlay, m_notifications, m_scoreboard, m_overlayPing, m_overlayChat, m_overlayLobbyCars, m_overlayPaceBar;
+        ComboBox m_overlayPosition, m_overlayToggleKey, m_overlayScoreboardKey, m_overlaySettingsKey;
+        Slider m_overlayScale;
+        StackPanel m_overlayOptions;
+        CheckBox m_atmosphere;
+        ComboBox m_atmosphereStart;
+        StackPanel m_atmosphereOptions;
+        CheckBox m_rightStickOrbit, m_orbitBlockShift, m_orbitInvertX;
+        Slider m_orbitDeadzone, m_orbitSnapTime, m_orbitBackTime;
+        StackPanel m_cameraOptions;
+        CheckBox m_verbose, m_colour, m_dumpEvents;
+        TextBlock m_settingsNote, m_diagnosticsNote;
         TextBlock m_installText;
         Button m_installButton2, m_uninstallButton;
 
@@ -925,12 +936,11 @@ namespace OpenProStreetLauncher
             m_console = new CheckBox { Content = "Show the console window, with MultiFix's and the client's log" };
             m_uncap = new CheckBox { Content = "Uncap the frame rate in races (otherwise the game limits them to 30 fps)" };
             page.Children.Add(Section("Display", m_borderless, m_vibration, m_uncap, m_console));
-            m_overlay = new CheckBox { Content = "Your times and place in races" };
-            m_notifications = new CheckBox { Content = "Race notifications" };
-            m_scoreboard = new CheckBox { Content = "Live scoreboard when holding Tab" };
-            m_overlayPing = new CheckBox { Content = "Server and player ping (ms)" };
-            page.Children.Add(Section("Overlay", m_overlay, m_notifications, m_scoreboard, m_overlayPing));
+            page.Children.Add(BuildOverlaySection());
+            page.Children.Add(BuildAtmosphereSection());
+            page.Children.Add(BuildCameraSection());
             page.Children.Add(Section("Advanced", m_verbose, m_colour, m_dumpEvents));
+            page.Children.Add(BuildDiagnosticsSection());
             if (OperatingSystem.IsWindows())
             {
                 m_installText = Ui.Text("", "small");
@@ -1107,6 +1117,143 @@ namespace OpenProStreetLauncher
             return Section("Gearbox", m_reshifted, m_shiftOptions);
         }
 
+        static readonly string[] OverlayPositions = { "TopLeft", "TopRight", "BottomLeft", "BottomRight" };
+        static readonly string[] AtmosphereLooks = { "Day", "Dusk", "Night" };
+        static readonly string[] OverlayHotkeys =
+        {
+            "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+            "Tab", "Insert", "Home", "End", "Delete", "PageUp", "PageDown"
+        };
+
+        static Control ComboRow(string label, ComboBox combo)
+        {
+            TextBlock name = Ui.Text(label, "small");
+            name.VerticalAlignment = VerticalAlignment.Center;
+            combo.HorizontalAlignment = HorizontalAlignment.Stretch;
+            Grid g = new Grid { ColumnDefinitions = new ColumnDefinitions("230,*") };
+            g.Children.Add(name);
+            Grid.SetColumn(combo, 1);
+            g.Children.Add(combo);
+            return g;
+        }
+
+        static void SelectComboValue(ComboBox combo, string value, string[] defaults)
+        {
+            List<string> items = new List<string>(defaults);
+            string trimmed = (value ?? "").Trim();
+            string matched = items.FirstOrDefault(x => string.Equals(x, trimmed, StringComparison.OrdinalIgnoreCase));
+            if (matched == null && trimmed.Length > 0)
+            {
+                items.Add(trimmed);
+                matched = trimmed;
+            }
+            combo.ItemsSource = items;
+            combo.SelectedItem = matched ?? items[0];
+        }
+
+        static string SelectedComboValue(ComboBox combo, string fallback)
+        {
+            return (combo.SelectedItem as string) ?? fallback;
+        }
+
+        Control BuildOverlaySection()
+        {
+            m_overlay = new CheckBox { Content = "In-game overlay (standing, notifications, settings menu)" };
+            m_notifications = new CheckBox { Content = "Race notifications and XP popups" };
+            m_overlayLobbyCars = new CheckBox { Content = "Room drivers and cars while in a lobby" };
+            m_overlayPaceBar = new CheckBox { Content = "Live pace bar while racing" };
+            m_scoreboard = new CheckBox { Content = "Live scoreboard when holding the scoreboard key" };
+            m_overlayPing = new CheckBox { Content = "Server and player ping (ms)" };
+            m_overlayChat = new CheckBox { Content = "Live in-game room chat messages" };
+            m_overlayScale = new Slider { Minimum = 50, Maximum = 200 };
+            m_overlayPosition = new ComboBox();
+            m_overlayToggleKey = new ComboBox();
+            m_overlayScoreboardKey = new ComboBox();
+            m_overlaySettingsKey = new ComboBox();
+
+            m_overlayOptions = Ui.Stack(8,
+                m_notifications, m_overlayLobbyCars, m_overlayPaceBar, m_scoreboard, m_overlayPing, m_overlayChat,
+                SliderRow("Overlay scale", m_overlayScale, "%"),
+                ComboRow("Corner position", m_overlayPosition),
+                ComboRow("Toggle HUD hotkey", m_overlayToggleKey),
+                ComboRow("Scoreboard hotkey", m_overlayScoreboardKey),
+                ComboRow("In-game settings hotkey", m_overlaySettingsKey));
+            m_overlayOptions.Margin = new Thickness(28, 4, 0, 0);
+            m_overlay.IsCheckedChanged += (s, e) => m_overlayOptions.IsVisible = m_overlay.IsChecked == true;
+            return Section("Overlay", m_overlay, m_overlayOptions);
+        }
+
+        Control BuildAtmosphereSection()
+        {
+            m_atmosphere = new CheckBox { Content = "Day, dusk and night lighting & sky presets (F8 / F9 in game)" };
+            m_atmosphereStart = new ComboBox();
+            m_atmosphereOptions = Ui.Stack(8, ComboRow("Starting look", m_atmosphereStart));
+            m_atmosphereOptions.Margin = new Thickness(28, 4, 0, 0);
+            m_atmosphere.IsCheckedChanged += (s, e) => m_atmosphereOptions.IsVisible = m_atmosphere.IsChecked == true;
+            return Section("Atmosphere", m_atmosphere, m_atmosphereOptions);
+        }
+
+        Control BuildCameraSection()
+        {
+            m_rightStickOrbit = new CheckBox { Content = "Right-stick camera orbit around the car (controller)" };
+            m_orbitBlockShift = new CheckBox { Content = "Block automatic gear shifts while orbiting" };
+            m_orbitInvertX = new CheckBox { Content = "Invert left / right orbit direction" };
+            m_orbitDeadzone = new Slider { Minimum = 5, Maximum = 90 };
+            m_orbitSnapTime = new Slider { Minimum = 0, Maximum = 1000 };
+            m_orbitBackTime = new Slider { Minimum = 0, Maximum = 5000 };
+
+            m_cameraOptions = Ui.Stack(8,
+                m_orbitBlockShift,
+                m_orbitInvertX,
+                SliderRow("Stick deadzone", m_orbitDeadzone, "%"),
+                SliderRow("Snap time", m_orbitSnapTime, " ms"),
+                SliderRow("Return time", m_orbitBackTime, " ms"));
+            m_cameraOptions.Margin = new Thickness(28, 4, 0, 0);
+            m_rightStickOrbit.IsCheckedChanged += (s, e) => m_cameraOptions.IsVisible = m_rightStickOrbit.IsChecked == true;
+            return Section("Camera orbit", m_rightStickOrbit, m_cameraOptions);
+        }
+
+        Control BuildDiagnosticsSection()
+        {
+            TextBlock desc = Ui.Text("Bundles configs, logs and race telemetry into a .zip file for troubleshooting. Account passwords and identity.key are never included.", "small");
+            desc.TextWrapping = TextWrapping.Wrap;
+            m_diagnosticsNote = Ui.Text("", "small");
+            m_diagnosticsNote.VerticalAlignment = VerticalAlignment.Center;
+            Button bundleBtn = Ui.Button("Save diagnostics bundle...", false, async () => await SaveDiagnosticsBundle());
+            StackPanel row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(0, 8, 0, 0) };
+            row.Children.Add(bundleBtn);
+            row.Children.Add(m_diagnosticsNote);
+            return Section("Diagnostics", desc, row);
+        }
+
+        async Task SaveDiagnosticsBundle()
+        {
+            var picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save OpenProStreet diagnostics bundle",
+                SuggestedFileName = Diagnostics.DefaultFileName(),
+                DefaultExtension = "zip",
+                FileTypeChoices = new[] { new FilePickerFileType("ZIP archive") { Patterns = new[] { "*.zip" } } }
+            });
+            string path = picked?.TryGetLocalPath();
+            if (string.IsNullOrEmpty(path)) return;
+
+            m_diagnosticsNote.Foreground = Ui.Idle;
+            m_diagnosticsNote.Text = "Collecting files...";
+            try
+            {
+                DiagnosticsResult result = await Task.Run(() => Diagnostics.CreateBundle(m_gameDir, path));
+                m_diagnosticsNote.Foreground = Ui.Success;
+                m_diagnosticsNote.Text = $"Saved {result.FilesIncluded} file(s) to {Path.GetFileName(path)}";
+            }
+            catch (Exception e)
+            {
+                m_diagnosticsNote.Foreground = Ui.Danger;
+                m_diagnosticsNote.Text = "Failed";
+                await Dialog.Show(this, "Couldn't save diagnostics", e.Message);
+            }
+        }
+
         void UpdateGearboxVisibility()
         {
             m_shiftOptions.IsVisible = m_reshifted.IsChecked == true;
@@ -1162,8 +1309,27 @@ namespace OpenProStreetLauncher
             m_dumpEvents.IsChecked = s.DumpEvents;
             m_overlay.IsChecked = s.Overlay;
             m_notifications.IsChecked = s.OverlayNotifications;
+            m_overlayLobbyCars.IsChecked = s.OverlayLobbyCars;
+            m_overlayPaceBar.IsChecked = s.OverlayPaceBar;
             m_scoreboard.IsChecked = s.OverlayScoreboard;
             m_overlayPing.IsChecked = s.OverlayPing;
+            m_overlayChat.IsChecked = s.OverlayChat;
+            m_overlayScale.Value = s.OverlayScale;
+            SelectComboValue(m_overlayPosition, s.OverlayPosition, OverlayPositions);
+            SelectComboValue(m_overlayToggleKey, s.OverlayToggleKey, OverlayHotkeys);
+            SelectComboValue(m_overlayScoreboardKey, s.OverlayScoreboardKey, OverlayHotkeys);
+            SelectComboValue(m_overlaySettingsKey, s.OverlaySettingsKey, OverlayHotkeys);
+            m_overlayOptions.IsVisible = s.Overlay;
+            m_atmosphere.IsChecked = s.AtmosphereEnabled;
+            SelectComboValue(m_atmosphereStart, s.AtmosphereStart, AtmosphereLooks);
+            m_atmosphereOptions.IsVisible = s.AtmosphereEnabled;
+            m_rightStickOrbit.IsChecked = s.RightStickOrbit;
+            m_orbitBlockShift.IsChecked = s.OrbitBlockShift;
+            m_orbitInvertX.IsChecked = s.OrbitInvertX;
+            m_orbitDeadzone.Value = s.OrbitDeadzone;
+            m_orbitSnapTime.Value = s.OrbitSnapTime;
+            m_orbitBackTime.Value = s.OrbitBackTime;
+            m_cameraOptions.IsVisible = s.RightStickOrbit;
             m_reshifted.IsChecked = s.ReShifted;
             m_shiftAdaptive.IsChecked = s.ShiftStyle != 1;
             m_shiftClassic.IsChecked = s.ShiftStyle == 1;
@@ -1210,8 +1376,24 @@ namespace OpenProStreetLauncher
             s.DumpEvents = m_dumpEvents.IsChecked == true;
             s.Overlay = m_overlay.IsChecked == true;
             s.OverlayNotifications = m_notifications.IsChecked == true;
+            s.OverlayLobbyCars = m_overlayLobbyCars.IsChecked == true;
+            s.OverlayPaceBar = m_overlayPaceBar.IsChecked == true;
             s.OverlayScoreboard = m_scoreboard.IsChecked == true;
             s.OverlayPing = m_overlayPing.IsChecked == true;
+            s.OverlayChat = m_overlayChat.IsChecked == true;
+            s.OverlayScale = (int)Math.Round(m_overlayScale.Value);
+            s.OverlayPosition = SelectedComboValue(m_overlayPosition, "TopRight");
+            s.OverlayToggleKey = SelectedComboValue(m_overlayToggleKey, "F3");
+            s.OverlayScoreboardKey = SelectedComboValue(m_overlayScoreboardKey, "Tab");
+            s.OverlaySettingsKey = SelectedComboValue(m_overlaySettingsKey, "F4");
+            s.AtmosphereEnabled = m_atmosphere.IsChecked == true;
+            s.AtmosphereStart = SelectedComboValue(m_atmosphereStart, "Day");
+            s.RightStickOrbit = m_rightStickOrbit.IsChecked == true;
+            s.OrbitBlockShift = m_orbitBlockShift.IsChecked == true;
+            s.OrbitInvertX = m_orbitInvertX.IsChecked == true;
+            s.OrbitDeadzone = (int)Math.Round(m_orbitDeadzone.Value);
+            s.OrbitSnapTime = (int)Math.Round(m_orbitSnapTime.Value);
+            s.OrbitBackTime = (int)Math.Round(m_orbitBackTime.Value);
             s.ReShifted = m_reshifted.IsChecked == true;
             s.ShiftStyle = m_shiftClassic.IsChecked == true ? 1 : 2;
             s.SportMemory = m_shiftMemory.IsChecked == true;
