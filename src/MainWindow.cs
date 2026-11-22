@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using Avalonia.Controls.Templates;
 using Path = System.IO.Path;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -68,6 +69,10 @@ namespace OpenProStreetLauncher
         ComboBox m_clientBranch;
         TextBox m_clientBranchCustom;
         TextBlock m_clientBranchNote;
+        Dictionary<string, BranchBuild> m_branchBuilds = new Dictionary<string, BranchBuild>(StringComparer.OrdinalIgnoreCase);
+        Border m_branchBanner;
+        TextBlock m_branchBannerText;
+        Button m_returnToMaster;
         TextBlock m_settingsNote, m_diagnosticsNote;
         TextBlock m_installText;
         Button m_installButton2, m_uninstallButton;
@@ -244,8 +249,36 @@ namespace OpenProStreetLauncher
             m_play.Classes.Add("big");
             m_play.HorizontalAlignment = HorizontalAlignment.Right;
 
+            // Shown while an experimental feature build is installed or selected.
+            m_branchBannerText = Ui.Text("", "small");
+            m_branchBannerText.VerticalAlignment = VerticalAlignment.Center;
+            m_returnToMaster = Ui.Button("Return to stable master", true, async () => await ReturnToMaster());
+            m_returnToMaster.VerticalAlignment = VerticalAlignment.Center;
+            Grid bannerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
+            TextBlock badge = Ui.Text("EXPERIMENTAL", "micro");
+            badge.Foreground = Ui.Warning;
+            badge.VerticalAlignment = VerticalAlignment.Center;
+            badge.Margin = new Thickness(0, 0, 12, 0);
+            bannerGrid.Children.Add(badge);
+            Grid.SetColumn(m_branchBannerText, 1);
+            bannerGrid.Children.Add(m_branchBannerText);
+            m_returnToMaster.Margin = new Thickness(12, 0, 0, 0);
+            Grid.SetColumn(m_returnToMaster, 2);
+            bannerGrid.Children.Add(m_returnToMaster);
+            m_branchBanner = new Border
+            {
+                BorderBrush = Ui.Warning,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16, 12),
+                Margin = new Thickness(0, 24, 0, 0),
+                Child = bannerGrid,
+                IsVisible = false,
+            };
+
             m_homeReady = Ui.Stack(0,
                 folderRow,
+                m_branchBanner,
                 Spaced(Ui.Micro("Components"), 32, 12),
                 List(m_rowGame, m_rowLoader, m_rowMultiFix, m_rowClient, m_rowControllers, m_rowHdReflections, m_rowTextures, m_rowDxvk, m_rowSteam, m_rowConflicts),
                 new Control { Height = 8 });
@@ -308,7 +341,8 @@ namespace OpenProStreetLauncher
                 : Game.Show(installed);
             Version latest = m_latest != null ? Downloads.ParseVersion(m_latest.Version) : null;
             bool sdk = Game.FindFile(Scripts, Game.DiscordSdk) != null;
-            bool hasFbInstalled = !string.IsNullOrEmpty(installedProduct) && installedProduct.Contains("-fb-", StringComparison.OrdinalIgnoreCase);
+            bool hasFbInstalled = Downloads.IsFeatureVersion(installedProduct);
+            UpdateBranchBanner(branch, featureBranch, installed != null && hasFbInstalled ? installedProduct : null);
 
             if (installed == null)
                 m_rowClient.Set(Ui.Danger, "Not installed", "Install", () => InstallClient(false));
@@ -395,6 +429,51 @@ namespace OpenProStreetLauncher
             {
                 m_admin.IsVisible = false;
             }
+        }
+
+        void UpdateBranchBanner(string branch, bool featureBranch, string installedFeatureBuild)
+        {
+            if (m_branchBanner == null) return;
+            m_branchBanner.IsVisible = featureBranch || installedFeatureBuild != null;
+            if (!m_branchBanner.IsVisible) return;
+            string installedBranch = Downloads.FeatureBranchOf(installedFeatureBuild);
+            string text;
+            if (installedFeatureBuild != null && featureBranch)
+                text = "Feature build " + installedFeatureBuild + " is installed and updates come from branch '" + branch + "'.";
+            else if (installedFeatureBuild != null)
+                text = "Feature build " + installedFeatureBuild + (installedBranch != null ? " (branch '" + installedBranch + "')" : "") + " is installed, but updates are set to stable master.";
+            else
+                text = "Updates come from experimental branch '" + branch + "' instead of stable master.";
+            m_branchBannerText.Text = text + " Feature builds may be unstable or blocked by the server.";
+            m_returnToMaster.IsEnabled = !m_busy;
+        }
+
+        // One click back to stable: switch the update branch to master and install master's newest release.
+        async Task ReturnToMaster()
+        {
+            if (m_busy) return;
+            LauncherSettings.ClientBranch = "master";
+            if (m_clientBranch != null)
+            {
+                SelectComboValue(m_clientBranch, "master", (m_clientBranch.ItemsSource as IEnumerable<string>)?.ToArray() ?? new[] { "master" });
+                m_clientBranchCustom.Text = "";
+                m_clientBranchNote.Foreground = Ui.Idle;
+                m_clientBranchNote.Text = "Active branch: master";
+            }
+            m_updateOffered = true; // installing right away, so no "update available" prompt on top
+            m_latestFailed = false;
+            m_latest = null;
+            try { m_latest = await Task.Run(() => Downloads.LatestClient("master")); }
+            catch (Exception e)
+            {
+                m_latestFailed = true;
+                RefreshHome();
+                await Dialog.Show(this, "Couldn't reach OneDev", "Updates are set back to master, but the newest release couldn't be loaded: " + e.Message);
+                return;
+            }
+            if (Game.IsGameDir(m_gameDir) && await EnsureWritable())
+                await InstallClient(Game.FindFile(Scripts, Game.ClientAsi) != null);
+            RefreshHome();
         }
 
         async Task CheckForUpdate()
@@ -1247,6 +1326,21 @@ namespace OpenProStreetLauncher
             TextBlock desc = Ui.Text("Choose which branch OpenProStreetClient updates come from. Leave on \"master\" for stable releases, or pick an experimental feature branch.", "small");
             desc.TextWrapping = TextWrapping.Wrap;
             m_clientBranch = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            m_clientBranch.ItemTemplate = new FuncDataTemplate<string>((branch, _) =>
+            {
+                StackPanel line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+                line.Children.Add(new TextBlock { Text = branch, VerticalAlignment = VerticalAlignment.Center });
+                string meta = branch != null && m_branchBuilds.TryGetValue(branch, out BranchBuild b) ? b.Describe() : "";
+                if (meta.Length > 0)
+                {
+                    TextBlock detail = Ui.Text(meta, "small");
+                    detail.Foreground = Ui.Idle;
+                    detail.VerticalAlignment = VerticalAlignment.Center;
+                    line.Children.Add(detail);
+                }
+                return line;
+            });
+            m_clientBranch.SelectionChanged += (s, e) => ShowSelectedBranchBuild();
             m_clientBranchCustom = new TextBox { Watermark = "Or type a branch name (optional)" };
             m_clientBranchNote = Ui.Text("", "small");
             m_clientBranchNote.VerticalAlignment = VerticalAlignment.Center;
@@ -1279,10 +1373,12 @@ namespace OpenProStreetLauncher
             m_clientBranchNote.Text = "Loading branches from OneDev...";
             try
             {
-                string[] list = await Task.Run(Downloads.ClientBranches);
+                BranchBuild[] builds = await Task.Run(Downloads.ClientBranchBuilds);
+                m_branchBuilds = builds.ToDictionary(b => b.Branch, b => b, StringComparer.OrdinalIgnoreCase);
+                string[] list = builds.Select(b => b.Branch).ToArray();
                 SelectComboValue(m_clientBranch, current, list);
                 m_clientBranchNote.Foreground = Ui.Success;
-                m_clientBranchNote.Text = $"Found {list.Length} branch(es). Active: {current}";
+                m_clientBranchNote.Text = $"Found {list.Length} branch(es). Active: {current}" + BranchBuildSuffix(current);
             }
             catch (Exception)
             {
@@ -1290,6 +1386,23 @@ namespace OpenProStreetLauncher
                 m_clientBranchNote.Foreground = Ui.Warning;
                 m_clientBranchNote.Text = "Couldn't load branches from OneDev. Active: " + current;
             }
+        }
+
+        string BranchBuildSuffix(string branch)
+        {
+            string meta = branch != null && m_branchBuilds.TryGetValue(branch, out BranchBuild b) ? b.Describe() : "";
+            return meta.Length > 0 ? " (latest build: " + meta + ")" : "";
+        }
+
+        void ShowSelectedBranchBuild()
+        {
+            string picked = SelectedComboValue(m_clientBranch, null);
+            if (picked == null || !m_branchBuilds.ContainsKey(picked)) return;
+            string active = LauncherSettings.ClientBranch;
+            m_clientBranchNote.Foreground = Ui.Idle;
+            m_clientBranchNote.Text = string.Equals(picked, active, StringComparison.OrdinalIgnoreCase)
+                ? "Active: " + active + BranchBuildSuffix(active)
+                : "Selected '" + picked + "'" + BranchBuildSuffix(picked) + ". Apply to switch from '" + active + "'.";
         }
 
         async Task ApplySelectedBranch()

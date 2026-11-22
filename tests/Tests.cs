@@ -713,6 +713,19 @@ static class Tests
         string[] parsedBranches = Downloads.ParseFeatureBranches("[{\"refName\":\"refs/heads/discord-invite\"},{\"refName\":\"refs/heads/discord-invite\"},{\"refName\":\"refs/heads/exp-test\"}]");
         Check(parsedBranches.Length == 3 && parsedBranches[0] == "master" && parsedBranches[1] == "discord-invite" && parsedBranches[2] == "exp-test",
               "ParseFeatureBranches lists master first plus unique branch names");
+        BranchBuild[] branchBuilds = Downloads.ParseBranchBuilds(
+            "[{\"refName\":\"refs/heads/discord-invite\",\"version\":\"10.22-fb-discord-invite-b288\",\"number\":288,\"commitHash\":\"fa9163bf7f3941a9\",\"finishDate\":\"2026-11-21T21:31:36.840+00:00\"}," +
+            "{\"refName\":\"refs/heads/discord-invite\",\"version\":\"10.22-fb-discord-invite-b200\",\"number\":200}]",
+            new BranchBuild { Version = "10.22", Number = 300 });
+        Check(branchBuilds.Length == 2 && branchBuilds[0].Branch == "master" && branchBuilds[0].Version == "10.22" &&
+              branchBuilds[1].Number == 288 && branchBuilds[1].Commit == "fa9163bf7f3941a9" && branchBuilds[1].FinishDate?.Year == 2026,
+              "ParseBranchBuilds keeps each branch's newest build with version, date and commit");
+        Check(branchBuilds[1].Describe().StartsWith("10.22-fb-discord-invite-b288, 2026-11-2") && branchBuilds[1].Describe().EndsWith(", fa9163b"),
+              "BranchBuild.Describe shows version, date and short commit");
+        Check(Downloads.IsFeatureVersion("10.22-fb-discord-invite") && !Downloads.IsFeatureVersion("10.22") && !Downloads.IsFeatureVersion(null) &&
+              Downloads.FeatureBranchOf("10.22-fb-discord-invite") == "discord-invite" &&
+              Downloads.FeatureBranchOf("10.22-fb-camera-invert-y-b12") == "camera-invert-y" && Downloads.FeatureBranchOf("10.22") == null,
+              "feature build versions are recognized and name their branch");
 
         string pePath = Path.Combine(root, "feature-client.asi");
         using (MemoryStream ms = new MemoryStream())
