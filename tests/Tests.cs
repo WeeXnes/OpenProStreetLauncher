@@ -144,21 +144,25 @@ static class Tests
 
         Console.WriteLine("Atmosphere & Camera orbit");
         Check(fresh.AtmosphereEnabled && fresh.AtmosphereStart == "Day" &&
-              !fresh.RightStickOrbit && fresh.OrbitBlockShift && !fresh.OrbitInvertX &&
+              !fresh.RightStickOrbit && fresh.OrbitBlockShift && !fresh.OrbitInvertX && !fresh.OrbitInvertY &&
               fresh.OrbitDeadzone == 30 && fresh.OrbitSnapTime == 50 && fresh.OrbitBackTime == 250,
               "atmosphere and camera orbit defaults match the client");
         string atmCam = Path.Combine(root, "atm_cam.ini");
-        File.WriteAllText(atmCam, "[Atmosphere]\r\nEnabled=0\r\nStart=night\r\nKey=F8\r\n[Camera]\r\nRightStickOrbit=1\r\nOrbitBlockShift=0\r\nOrbitInvertX=1\r\nOrbitDeadzone=999\r\nOrbitSnapTime=120\r\nOrbitBackTime=450\r\n");
+        File.WriteAllText(atmCam, "[Atmosphere]\r\nEnabled=0\r\nStart=night\r\nKey=F8\r\n[Camera]\r\nRightStickOrbit=1\r\nOrbitBlockShift=0\r\nOrbitInvertX=1\r\nOrbitInvertY=1\r\nOrbitDeadzone=999\r\nOrbitSnapTime=120\r\nOrbitBackTime=450\r\n");
         ClientSettings ac = ClientSettings.Load(atmCam);
         Check(!ac.AtmosphereEnabled && ac.AtmosphereStart == "Night" &&
-              ac.RightStickOrbit && !ac.OrbitBlockShift && ac.OrbitInvertX &&
+              ac.RightStickOrbit && !ac.OrbitBlockShift && ac.OrbitInvertX && ac.OrbitInvertY &&
               ac.OrbitDeadzone == 90 && ac.OrbitSnapTime == 120 && ac.OrbitBackTime == 450,
               "[Atmosphere] and [Camera] settings read and clamp cleanly");
         ac.AtmosphereEnabled = true;
         ac.AtmosphereStart = "Dusk";
         ac.OrbitDeadzone = 20;
+        ac.OrbitInvertY = false;
         ac.Save(atmCam);
         string atmCamText = File.ReadAllText(atmCam);
+        Check(atmCamText.Contains("OrbitInvertY=0") && !ClientSettings.Load(atmCam).OrbitInvertY &&
+              ClientSettings.Load(atmCam).OrbitInvertX,
+              "[Camera] OrbitInvertY round-trips independently of OrbitInvertX");
         Check(atmCamText.Contains("Key=F8") && atmCamText.Contains("Start=Dusk") && atmCamText.Contains("OrbitDeadzone=20"),
               "saving preserves unrelated Atmosphere keys and writes updated values");
 
