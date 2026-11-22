@@ -16,6 +16,27 @@ namespace OpenProStreetLauncher
         public string Version;
     }
 
+    // The newest successful client build of one branch, for showing next to the branch's name.
+    class BranchBuild
+    {
+        public string Branch;
+        public string Version;
+        public int Number;
+        public DateTime? FinishDate;
+        public string Commit;
+
+        // "10.22-fb-discord-invite-b288, 2026-11-21, fa9163b"
+        public string Describe()
+        {
+            System.Collections.Generic.List<string> parts = new System.Collections.Generic.List<string>();
+            if (!string.IsNullOrWhiteSpace(Version)) parts.Add(Version);
+            else if (Number > 0) parts.Add("#" + Number);
+            if (FinishDate is DateTime d) parts.Add(d.ToLocalTime().ToString("yyyy-MM-dd"));
+            if (!string.IsNullOrWhiteSpace(Commit)) parts.Add(Commit.Length > 7 ? Commit.Substring(0, 7) : Commit);
+            return string.Join(", ", parts);
+        }
+    }
+
     // Downloads from OneDev's build artifacts and the ASI loader's GitHub release, the same places the
     // PowerShell installer uses. The calls block, so the window runs them on a worker thread.
     static class Downloads
@@ -64,6 +85,21 @@ namespace OpenProStreetLauncher
             return b.Length == 0 || string.Equals(b, "master", StringComparison.OrdinalIgnoreCase) || string.Equals(b, "main", StringComparison.OrdinalIgnoreCase);
         }
 
+        // A client ProductVersion like "10.22-fb-discord-invite" comes from a Build Feature Branch build.
+        public static bool IsFeatureVersion(string version) =>
+            !string.IsNullOrEmpty(version) && version.Contains("-fb-", StringComparison.OrdinalIgnoreCase);
+
+        // "discord-invite" from "10.22-fb-discord-invite" (or "...-b288" build versions), else null.
+        public static string FeatureBranchOf(string version)
+        {
+            if (!IsFeatureVersion(version)) return null;
+            int at = version.IndexOf("-fb-", StringComparison.OrdinalIgnoreCase);
+            string rest = version.Substring(at + 4);
+            Match build = Regex.Match(rest, @"-b\d+$");
+            if (build.Success) rest = rest.Substring(0, build.Index);
+            return rest.Length > 0 ? rest : null;
+        }
+
         public static string BuildClientQuery(string branch)
         {
             if (IsDefaultBranch(branch)) return ClientQuery;
@@ -73,9 +109,15 @@ namespace OpenProStreetLauncher
 
         public static Build LatestClient(string branch = null) => LatestBuild(BuildClientQuery(branch));
 
-        internal static string[] ParseFeatureBranches(string json)
+        internal static string[] ParseFeatureBranches(string json) =>
+            ParseBranchBuilds(json).Select(b => b.Branch).ToArray();
+
+        // OneDev lists builds newest first, so the first build seen for a branch is its latest one.
+        // "master" always comes first, with its build filled in only when the JSON had one for it.
+        internal static BranchBuild[] ParseBranchBuilds(string json, BranchBuild master = null)
         {
-            System.Collections.Generic.List<string> branches = new System.Collections.Generic.List<string> { "master" };
+            System.Collections.Generic.List<BranchBuild> branches = new System.Collections.Generic.List<BranchBuild> { master ?? new BranchBuild { Branch = "master" } };
+            branches[0].Branch = "master";
             using JsonDocument doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return branches.ToArray();
             foreach (JsonElement item in doc.RootElement.EnumerateArray())
@@ -85,21 +127,58 @@ namespace OpenProStreetLauncher
                 const string prefix = "refs/heads/";
                 if (!refName.StartsWith(prefix, StringComparison.Ordinal)) continue;
                 string branch = refName.Substring(prefix.Length).Trim();
-                if (branch.Length > 0 && !branches.Contains(branch, StringComparer.OrdinalIgnoreCase)) branches.Add(branch);
+                if (branch.Length == 0 || branches.Any(b => string.Equals(b.Branch, branch, StringComparison.OrdinalIgnoreCase))) continue;
+                BranchBuild info = BranchBuildFrom(item);
+                info.Branch = branch;
+                branches.Add(info);
             }
             return branches.ToArray();
         }
 
-        public static string[] ClientBranches()
+        internal static BranchBuild BranchBuildFrom(JsonElement b)
         {
-            string url = OneDev + "/~api/builds?query=" + Uri.EscapeDataString(ClientFeatureQuery) + "&offset=0&count=25";
+            BranchBuild info = new BranchBuild
+            {
+                Version = Str(b, "version"),
+                Number = b.TryGetProperty("number", out JsonElement n) && n.ValueKind == JsonValueKind.Number ? n.GetInt32() : 0,
+                Commit = Str(b, "commitHash"),
+            };
+            string finished = Str(b, "finishDate") ?? Str(b, "submitDate");
+            if (finished != null && DateTimeOffset.TryParse(finished, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out DateTimeOffset when))
+                info.FinishDate = when.UtcDateTime;
+            return info;
+        }
+
+        static string Str(JsonElement e, string name) =>
+            e.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+        static string GetJson(string query, int count)
+        {
+            string url = OneDev + "/~api/builds?query=" + Uri.EscapeDataString(query) + "&offset=0&count=" + count;
             using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Accept.ParseAdd("application/json");
             using HttpResponseMessage response = Http.Send(request);
             response.EnsureSuccessStatusCode();
             using Stream body = response.Content.ReadAsStream();
             using StreamReader reader = new StreamReader(body);
-            return ParseFeatureBranches(reader.ReadToEnd());
+            return reader.ReadToEnd();
+        }
+
+        public static string[] ClientBranches() => ClientBranchBuilds().Select(b => b.Branch).ToArray();
+
+        // Every branch with a successful client build, master first, each with its newest build's details.
+        public static BranchBuild[] ClientBranchBuilds()
+        {
+            BranchBuild master = null;
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(GetJson(ClientQuery, 1));
+                if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+                    master = BranchBuildFrom(doc.RootElement[0]);
+            }
+            catch (Exception) { } // the feature list is still useful without master's details
+            return ParseBranchBuilds(GetJson(ClientFeatureQuery, 25), master);
         }
 
         const string LauncherQuery = "\"Project\" is \"OpenProStreet/launcher\" and \"Job\" is \"Build Release Tag\" and successful";

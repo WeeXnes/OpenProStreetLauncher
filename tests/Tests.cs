@@ -144,21 +144,25 @@ static class Tests
 
         Console.WriteLine("Atmosphere & Camera orbit");
         Check(fresh.AtmosphereEnabled && fresh.AtmosphereStart == "Day" &&
-              !fresh.RightStickOrbit && fresh.OrbitBlockShift && !fresh.OrbitInvertX &&
+              !fresh.RightStickOrbit && fresh.OrbitBlockShift && !fresh.OrbitInvertX && !fresh.OrbitInvertY &&
               fresh.OrbitDeadzone == 30 && fresh.OrbitSnapTime == 50 && fresh.OrbitBackTime == 250,
               "atmosphere and camera orbit defaults match the client");
         string atmCam = Path.Combine(root, "atm_cam.ini");
-        File.WriteAllText(atmCam, "[Atmosphere]\r\nEnabled=0\r\nStart=night\r\nKey=F8\r\n[Camera]\r\nRightStickOrbit=1\r\nOrbitBlockShift=0\r\nOrbitInvertX=1\r\nOrbitDeadzone=999\r\nOrbitSnapTime=120\r\nOrbitBackTime=450\r\n");
+        File.WriteAllText(atmCam, "[Atmosphere]\r\nEnabled=0\r\nStart=night\r\nKey=F8\r\n[Camera]\r\nRightStickOrbit=1\r\nOrbitBlockShift=0\r\nOrbitInvertX=1\r\nOrbitInvertY=1\r\nOrbitDeadzone=999\r\nOrbitSnapTime=120\r\nOrbitBackTime=450\r\n");
         ClientSettings ac = ClientSettings.Load(atmCam);
         Check(!ac.AtmosphereEnabled && ac.AtmosphereStart == "Night" &&
-              ac.RightStickOrbit && !ac.OrbitBlockShift && ac.OrbitInvertX &&
+              ac.RightStickOrbit && !ac.OrbitBlockShift && ac.OrbitInvertX && ac.OrbitInvertY &&
               ac.OrbitDeadzone == 90 && ac.OrbitSnapTime == 120 && ac.OrbitBackTime == 450,
               "[Atmosphere] and [Camera] settings read and clamp cleanly");
         ac.AtmosphereEnabled = true;
         ac.AtmosphereStart = "Dusk";
         ac.OrbitDeadzone = 20;
+        ac.OrbitInvertY = false;
         ac.Save(atmCam);
         string atmCamText = File.ReadAllText(atmCam);
+        Check(atmCamText.Contains("OrbitInvertY=0") && !ClientSettings.Load(atmCam).OrbitInvertY &&
+              ClientSettings.Load(atmCam).OrbitInvertX,
+              "[Camera] OrbitInvertY round-trips independently of OrbitInvertX");
         Check(atmCamText.Contains("Key=F8") && atmCamText.Contains("Start=Dusk") && atmCamText.Contains("OrbitDeadzone=20"),
               "saving preserves unrelated Atmosphere keys and writes updated values");
 
@@ -713,6 +717,19 @@ static class Tests
         string[] parsedBranches = Downloads.ParseFeatureBranches("[{\"refName\":\"refs/heads/discord-invite\"},{\"refName\":\"refs/heads/discord-invite\"},{\"refName\":\"refs/heads/exp-test\"}]");
         Check(parsedBranches.Length == 3 && parsedBranches[0] == "master" && parsedBranches[1] == "discord-invite" && parsedBranches[2] == "exp-test",
               "ParseFeatureBranches lists master first plus unique branch names");
+        BranchBuild[] branchBuilds = Downloads.ParseBranchBuilds(
+            "[{\"refName\":\"refs/heads/discord-invite\",\"version\":\"10.22-fb-discord-invite-b288\",\"number\":288,\"commitHash\":\"fa9163bf7f3941a9\",\"finishDate\":\"2026-11-21T21:31:36.840+00:00\"}," +
+            "{\"refName\":\"refs/heads/discord-invite\",\"version\":\"10.22-fb-discord-invite-b200\",\"number\":200}]",
+            new BranchBuild { Version = "10.22", Number = 300 });
+        Check(branchBuilds.Length == 2 && branchBuilds[0].Branch == "master" && branchBuilds[0].Version == "10.22" &&
+              branchBuilds[1].Number == 288 && branchBuilds[1].Commit == "fa9163bf7f3941a9" && branchBuilds[1].FinishDate?.Year == 2026,
+              "ParseBranchBuilds keeps each branch's newest build with version, date and commit");
+        Check(branchBuilds[1].Describe().StartsWith("10.22-fb-discord-invite-b288, 2026-11-2") && branchBuilds[1].Describe().EndsWith(", fa9163b"),
+              "BranchBuild.Describe shows version, date and short commit");
+        Check(Downloads.IsFeatureVersion("10.22-fb-discord-invite") && !Downloads.IsFeatureVersion("10.22") && !Downloads.IsFeatureVersion(null) &&
+              Downloads.FeatureBranchOf("10.22-fb-discord-invite") == "discord-invite" &&
+              Downloads.FeatureBranchOf("10.22-fb-camera-invert-y-b12") == "camera-invert-y" && Downloads.FeatureBranchOf("10.22") == null,
+              "feature build versions are recognized and name their branch");
 
         string pePath = Path.Combine(root, "feature-client.asi");
         using (MemoryStream ms = new MemoryStream())
