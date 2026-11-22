@@ -135,6 +135,7 @@ namespace OpenProStreetLauncher
         public bool RightStickOrbit = false;
         public bool OrbitBlockShift = true;
         public bool OrbitInvertX = false;
+        public bool OrbitInvertY = false;
         public int OrbitDeadzone = 30;           // percent, 5 to 90
         public int OrbitSnapTime = 50;           // ms, 0 to 1000
         public int OrbitBackTime = 250;          // ms, 0 to 5000
@@ -255,6 +256,7 @@ namespace OpenProStreetLauncher
             s.RightStickOrbit = ini.GetBool("Camera", "RightStickOrbit", s.RightStickOrbit);
             s.OrbitBlockShift = ini.GetBool("Camera", "OrbitBlockShift", s.OrbitBlockShift);
             s.OrbitInvertX = ini.GetBool("Camera", "OrbitInvertX", s.OrbitInvertX);
+            s.OrbitInvertY = ini.GetBool("Camera", "OrbitInvertY", s.OrbitInvertY);
             s.OrbitDeadzone = GetInt(ini, "Camera", "OrbitDeadzone", s.OrbitDeadzone, 5, 90);
             s.OrbitSnapTime = GetInt(ini, "Camera", "OrbitSnapTime", s.OrbitSnapTime, 0, 1000);
             s.OrbitBackTime = GetInt(ini, "Camera", "OrbitBackTime", s.OrbitBackTime, 0, 5000);
@@ -307,6 +309,7 @@ namespace OpenProStreetLauncher
             ini.SetBool("Camera", "RightStickOrbit", RightStickOrbit);
             ini.SetBool("Camera", "OrbitBlockShift", OrbitBlockShift);
             ini.SetBool("Camera", "OrbitInvertX", OrbitInvertX);
+            ini.SetBool("Camera", "OrbitInvertY", OrbitInvertY);
             ini.Set("Camera", "OrbitDeadzone", System.Math.Clamp(OrbitDeadzone, 5, 90).ToString());
             ini.Set("Camera", "OrbitSnapTime", System.Math.Clamp(OrbitSnapTime, 0, 1000).ToString());
             ini.Set("Camera", "OrbitBackTime", System.Math.Clamp(OrbitBackTime, 0, 5000).ToString());

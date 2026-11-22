@@ -61,7 +61,7 @@ namespace OpenProStreetLauncher
         CheckBox m_atmosphere;
         ComboBox m_atmosphereStart;
         StackPanel m_atmosphereOptions;
-        CheckBox m_rightStickOrbit, m_orbitBlockShift, m_orbitInvertX;
+        CheckBox m_rightStickOrbit, m_orbitBlockShift, m_orbitInvertX, m_orbitInvertY;
         Slider m_orbitDeadzone, m_orbitSnapTime, m_orbitBackTime;
         StackPanel m_cameraOptions;
         CheckBox m_verbose, m_colour, m_dumpEvents;
@@ -1227,6 +1227,7 @@ namespace OpenProStreetLauncher
             m_rightStickOrbit = new CheckBox { Content = "Right-stick camera orbit around the car (controller)" };
             m_orbitBlockShift = new CheckBox { Content = "Block automatic gear shifts while orbiting" };
             m_orbitInvertX = new CheckBox { Content = "Invert left / right orbit direction" };
+            m_orbitInvertY = new CheckBox { Content = "Invert front / back orbit direction (Y axis)" };
             m_orbitDeadzone = new Slider { Minimum = 5, Maximum = 90 };
             m_orbitSnapTime = new Slider { Minimum = 0, Maximum = 1000 };
             m_orbitBackTime = new Slider { Minimum = 0, Maximum = 5000 };
@@ -1234,6 +1235,7 @@ namespace OpenProStreetLauncher
             m_cameraOptions = Ui.Stack(8,
                 m_orbitBlockShift,
                 m_orbitInvertX,
+                m_orbitInvertY,
                 SliderRow("Stick deadzone", m_orbitDeadzone, "%"),
                 SliderRow("Snap time", m_orbitSnapTime, " ms"),
                 SliderRow("Return time", m_orbitBackTime, " ms"));
@@ -1436,6 +1438,7 @@ namespace OpenProStreetLauncher
             m_rightStickOrbit.IsChecked = s.RightStickOrbit;
             m_orbitBlockShift.IsChecked = s.OrbitBlockShift;
             m_orbitInvertX.IsChecked = s.OrbitInvertX;
+            m_orbitInvertY.IsChecked = s.OrbitInvertY;
             m_orbitDeadzone.Value = s.OrbitDeadzone;
             m_orbitSnapTime.Value = s.OrbitSnapTime;
             m_orbitBackTime.Value = s.OrbitBackTime;
@@ -1501,6 +1504,7 @@ namespace OpenProStreetLauncher
             s.RightStickOrbit = m_rightStickOrbit.IsChecked == true;
             s.OrbitBlockShift = m_orbitBlockShift.IsChecked == true;
             s.OrbitInvertX = m_orbitInvertX.IsChecked == true;
+            s.OrbitInvertY = m_orbitInvertY.IsChecked == true;
             s.OrbitDeadzone = (int)Math.Round(m_orbitDeadzone.Value);
             s.OrbitSnapTime = (int)Math.Round(m_orbitSnapTime.Value);
             s.OrbitBackTime = (int)Math.Round(m_orbitBackTime.Value);
